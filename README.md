@@ -117,7 +117,7 @@ flowchart TD
 
 ```bash
 # Clone the repository
-git clone https://github.com/<org>/rune.git
+git clone https://github.com/AdemGhalleb/Rune.git
 cd rune
 
 # (Once packaged releases exist, this section will instead point to
