@@ -35,6 +35,8 @@ Rune is also **local-first by design**, not as a compliance checkbox. Academic m
 
 ### Implemented
 
+> **Note:** The repository is in early development. See [`docs/STATUS.md`](./docs/STATUS.md) for what is actually built versus planned.
+
 - **Local workspace intelligence** — point Rune at your academic folders; it indexes them without moving or duplicating your files.
 - **Document processing pipeline** — text extraction, chunking, and embedding for PDFs, Word documents, and plain text/Markdown notes.
 - **Semantic + metadata-aware search** — retrieval scoped by course, document type, and recency, not just raw similarity.
@@ -118,22 +120,16 @@ flowchart TD
 ```bash
 # Clone the repository
 git clone https://github.com/AdemGhalleb/Rune.git
-cd rune
+cd Rune
 
 # (Once packaged releases exist, this section will instead point to
 # platform-specific installers — see Releases.)
 
-# Backend setup
-cd backend
-python -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+# One-time setup
+./scripts/setup.sh          # macOS/Linux
+# scripts/setup.ps1         # Windows (PowerShell)
 
-# Frontend setup
-cd ../frontend
-npm install
-
-# Pull a local model (example)
+# Pull a local model (example — needed once AI features land)
 ollama pull llama3.2:3b
 ```
 
@@ -148,11 +144,15 @@ On first run, Rune creates a local configuration file (default location varies b
 ### First launch
 
 ```bash
-# from /backend
-uvicorn app.main:app --reload
+# Backend + frontend together
+npm run dev:all
 
-# from /frontend, in a separate terminal
-npm run tauri dev
+# Or separately:
+npm run dev:backend    # FastAPI on http://127.0.0.1:18742
+npm run dev            # Vite UI on http://localhost:1420
+
+# Tauri desktop shell (requires Rust toolchain)
+cd apps/desktop && npm run tauri:dev
 ```
 
 On first launch, Rune will prompt you to select a workspace folder and begin initial indexing.
@@ -171,23 +171,27 @@ A student-focused walkthrough — with no assumed technical background — lives
 
 ```
 rune/
-├── apps/desktop/       # Tauri shell — packages the frontend, minimal native code
-├── frontend/           # React + TypeScript UI, organized by feature
-├── backend/
-│   └── app/
-│       ├── api/        # Thin FastAPI routers — parse request, call a service, return
-│       ├── services/   # Business logic and orchestration
-│       ├── ai/         # Providers, RAG pipeline, memory, mastery, agent tooling
-│       ├── workspace/  # File watching and change detection
-│       ├── workers/    # Background job scheduling and execution
-│       └── db/         # SQLAlchemy models, migrations, vector store integration
-├── docs/                # Architecture notes and ADRs
-└── scripts/              # Local dev tooling
+├── apps/
+│   ├── desktop/            # Tauri shell + React/TypeScript UI (feature-organized)
+│   │   ├── src/            # Frontend source
+│   │   └── src-tauri/      # Tauri native shell
+│   └── backend/
+│       └── app/
+│           ├── api/        # Thin FastAPI routers — parse request, call a service, return
+│           ├── services/   # Business logic and orchestration
+│           ├── ai/         # Providers, RAG pipeline, memory, mastery
+│           ├── workspace/  # File watching and change detection
+│           ├── workers/    # Background job scheduling and execution
+│           ├── db/         # SQLAlchemy models, migrations, vector store integration
+│           └── core/       # Config, logging, shared utilities
+├── docs/                   # Architecture notes, ADRs, implementation status
+├── scripts/                # Local dev tooling (setup, dev, test)
+└── .github/                # CI workflows
 ```
 
 ### Major modules
 
-- **`frontend/`** — the desktop UI, organized by feature (chat, documents, memory, deadlines) rather than by file type; communicates with the backend over local HTTP.
+- **`apps/desktop/`** — the Tauri shell and React UI, organized by feature (chat, documents, memory, settings) rather than by file type; communicates with the backend over local HTTP.
 - **`backend/app/api/`** — the HTTP boundary; contains no business logic.
 - **`backend/app/services/`** — orchestrates the AI layer, database, and workspace modules to fulfill a request; this is where feature logic actually lives.
 - **`backend/app/ai/rag/`** — the ingestion pipeline (extraction, chunking, embedding, metadata tagging) and the retrieval logic used at query time.

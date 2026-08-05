@@ -1,0 +1,20 @@
+{
+  "name": "rune",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "A local-first AI academic companion",
+  "workspaces": [
+    "apps/desktop"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@rune/desktop",
+    "dev:backend": "node scripts/run-backend.js",
+    "dev:all": "node scripts/dev.js",
+    "lint": "npm run lint --workspace=@rune/desktop",
+    "test:backend": "node scripts/test-backend.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
