@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import router as v1_router
 from app.core.config import Settings, get_settings
 from app.core.logging import setup_logging
+from app.db.database import create_database_engine, create_session_factory, run_migrations
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = app.state.settings
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.log_dir.mkdir(parents=True, exist_ok=True)
+    run_migrations(settings)
+    app.state.engine = create_database_engine(settings)
+    app.state.session_factory = create_session_factory(app.state.engine)
     logger.info(
         "Starting %s v%s on http://%s:%s",
         settings.app_name,
@@ -27,6 +31,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.port,
     )
     yield
+    app.state.engine.dispose()
     logger.info("Shutting down %s", settings.app_name)
 
 

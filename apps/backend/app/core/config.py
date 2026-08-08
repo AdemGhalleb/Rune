@@ -1,5 +1,6 @@
 """Application configuration."""
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -23,12 +24,20 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 18742
 
-    # Override in production/Tauri to OS-specific app data directory.
-    data_dir: Path = Path(".rune")
+    # Keep runtime data outside the source tree. Tests can override this setting.
+    data_dir: Path = Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local")) / "Rune"
 
     @property
     def log_dir(self) -> Path:
         return self.data_dir / "logs"
+
+    @property
+    def database_path(self) -> Path:
+        return self.data_dir / "rune.db"
+
+    @property
+    def database_url(self) -> str:
+        return f"sqlite+pysqlite:///{self.database_path.as_posix()}"
 
 
 @lru_cache

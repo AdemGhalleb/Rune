@@ -2,7 +2,7 @@
 
 This document tracks what is **actually built** versus what the README describes as product intent.
 
-Last updated: Phase 0, Step 1 (Foundation scaffold)
+Last updated: Phase 0, Step 2 (Persistent workspace)
 
 ## Phase 0 — Foundation
 
@@ -16,7 +16,9 @@ Last updated: Phase 0, Step 1 (Foundation scaffold)
 | Local HTTP client (frontend → backend) | Done | Home page health check |
 | Dev scripts | Done | `npm run dev:all`, `scripts/setup.ps1` |
 | CI (lint + test) | Done | GitHub Actions |
-| Database + migrations | Not started | Phase 0 Step 2 |
+| SQLite database + Alembic migrations | Done | Database is migrated on backend startup in Rune's local application-data directory. |
+| Persistent workspace selection API | Done | `GET/PUT/PATCH/DELETE /api/v1/workspace`; validates an existing directory and persists only its location. |
+| Workspace selection frontend flow | Done | First launch prompts for a folder; later launches load the saved selection. No scanning or indexing occurs. |
 | Provider abstraction (Ollama) | Not started | Phase 0 Step 2 |
 | Tauri backend lifecycle (spawn/kill) | Not started | Phase 0 Step 2 |
 
@@ -24,6 +26,7 @@ Last updated: Phase 0, Step 1 (Foundation scaffold)
 
 | Feature | Status |
 |---|---|
+| Workspace selection & persistence | Done — location only; no file scanning, indexing, or watching |
 | Workspace indexing & sync | Not started |
 | RAG chat | Not started |
 | Persistent memory | Not started |
@@ -53,3 +56,21 @@ Open http://localhost:1420 — the Home page should show backend status `ok`.
 ```bash
 npm run test:backend
 ```
+
+## Persistent workspace developer note
+
+Rune stores its SQLite database at `%LOCALAPPDATA%\\Rune\\rune.db` on Windows (or
+`~/.local/Rune/rune.db` when `LOCALAPPDATA` is unavailable). Set `DATA_DIR` to use a
+different location for local development or tests. SQLite runs in WAL mode for the
+single-user desktop workload.
+
+The backend upgrades the database to the latest Alembic revision during startup. To
+run migrations manually from `apps/backend`, use:
+
+```bash
+alembic upgrade head
+```
+
+The `workspaces` table deliberately contains only the currently selected academic
+folder's path, display name, and timestamps. Selecting a folder validates and saves
+that location; Rune does not scan, index, copy, or watch its contents in this phase.

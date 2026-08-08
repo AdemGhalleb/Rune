@@ -1,1 +1,1 @@
-"""Reserved for business logic orchestration (Phase 1+)."""
+"""Business-logic services."""

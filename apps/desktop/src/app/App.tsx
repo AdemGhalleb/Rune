@@ -9,13 +9,15 @@ import { LearningPage } from "@/features/learning/LearningPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { TasksPage } from "@/features/tasks/TasksPage";
 import { ThemeProvider } from "@/lib/theme/ThemeProvider";
+import { WorkspaceProvider } from "@/lib/workspace/WorkspaceProvider";
 
 export function App() {
   return (
     <ThemeProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<AppLayout />}>
+      <WorkspaceProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<AppLayout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
@@ -25,9 +27,10 @@ export function App() {
             <Route path="/email" element={<EmailPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </WorkspaceProvider>
     </ThemeProvider>
   );
 }

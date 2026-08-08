@@ -1,11 +1,30 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { getBackendUrl } from "@/lib/api/client";
 import { useTheme } from "@/lib/theme/ThemeProvider";
+import { pickWorkspaceFolder } from "@/lib/workspace/folderPicker";
+import { useWorkspace } from "@/lib/workspace/WorkspaceProvider";
 
 export function SettingsPage() {
   const { setTheme, theme, toggleTheme } = useTheme();
+  const { resetWorkspace, setWorkspace, workspace } = useWorkspace();
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+
+  async function changeWorkspace() {
+    setWorkspaceError(null);
+    try {
+      const path = await pickWorkspaceFolder();
+      if (path) await setWorkspace(path);
+    } catch (reason) {
+      setWorkspaceError(
+        reason instanceof Error
+          ? reason.message
+          : "The folder picker is available in the Rune desktop app."
+      );
+    }
+  }
 
   return (
     <section className="page page-wide settings-page">
@@ -27,8 +46,12 @@ export function SettingsPage() {
         <div className="settings-stack">
           <Card id="workspace">
             <SectionHeader icon="folder" title="Workspace" />
-            <p className="muted">Academic files stay in place; Rune indexes references and local metadata.</p>
-            <Button variant="secondary">Change workspace folder</Button>
+            <p className="muted">{workspace?.root_path}. Rune keeps academic files in place; scanning is not enabled yet.</p>
+            <div className="button-row">
+              <Button onClick={() => void changeWorkspace()} variant="secondary">Change workspace folder</Button>
+              <Button onClick={() => void resetWorkspace()} variant="destructive">Reset workspace</Button>
+            </div>
+            {workspaceError && <p className="status-error" style={{ marginTop: "var(--space-3)" }}>{workspaceError}</p>}
           </Card>
 
           <Card id="ai-models">

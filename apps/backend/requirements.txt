@@ -2,6 +2,8 @@ fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 pydantic>=2.10.0
 pydantic-settings>=2.6.0
+SQLAlchemy>=2.0.36
+alembic>=1.14.0
 
 # Dev / test
 pytest>=8.3.0

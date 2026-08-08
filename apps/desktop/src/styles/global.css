@@ -1314,6 +1314,50 @@ small {
   color: var(--accent-primary);
 }
 
+.workspace-setup-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-7);
+}
+
+.workspace-setup-card {
+  width: min(560px, 100%);
+  display: grid;
+  gap: var(--space-5);
+}
+
+.workspace-setup-card h1,
+.workspace-setup-card p {
+  margin: 0;
+}
+
+.workspace-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.workspace-form label {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.workspace-path-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+}
+
+.workspace-path-row input {
+  min-width: 0;
+  padding: 8px var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+  color: var(--text-primary);
+}
+
 .spinner {
   width: 16px;
   height: 16px;

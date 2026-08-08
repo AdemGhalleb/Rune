@@ -1,6 +1,6 @@
-import { NavLink } from "react-router-dom";
-import { ProgressBar } from "@/components/ui/ProgressBar";
+import { NavLink, useNavigate } from "react-router-dom";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { useWorkspace } from "@/lib/workspace/WorkspaceProvider";
 
 interface NavItem {
   to: string;
@@ -19,6 +19,8 @@ const primaryNav: NavItem[] = [
 ];
 
 export function Sidebar() {
+  const { workspace } = useWorkspace();
+  const navigate = useNavigate();
   return (
     <aside className="sidebar" aria-label="Primary navigation">
       <div className="brand">
@@ -29,13 +31,13 @@ export function Sidebar() {
         </div>
       </div>
 
-      <button className="workspace-card" type="button">
+      <button className="workspace-card" onClick={() => navigate("/settings#workspace")} type="button">
         <span className="workspace-icon">
           <Icon name="folder" size={18} />
         </span>
         <span>
-          <span>Academic Workspace</span>
-          <small>3 courses indexed</small>
+          <span>{workspace?.name ?? "Academic Workspace"}</span>
+          <small>Workspace selected</small>
         </span>
       </button>
 
@@ -54,13 +56,7 @@ export function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
-        <div className="sync-card">
-          <div className="sync-title">
-            <span className="pulse-dot" />
-            <span>Indexing workspace</span>
-          </div>
-          <ProgressBar value={72} label="Embedding notes" />
-        </div>
+        <div className="sync-card">Workspace scanning is not enabled yet.</div>
         <NavLink className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")} to="/settings">
           <Icon name="settings" size={20} />
           <span>Settings</span>

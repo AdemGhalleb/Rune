@@ -4,8 +4,11 @@ import { CommandPalette } from "@/components/layout/CommandPalette";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { CourseSwitcher } from "@/components/workspace/CourseSwitcher";
 import { Icon } from "@/components/ui/Icon";
+import { WorkspaceSetup } from "@/components/workspace/WorkspaceSetup";
+import { useWorkspace } from "@/lib/workspace/WorkspaceProvider";
 
 export function AppLayout() {
+  const { loading, workspace } = useWorkspace();
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
@@ -19,6 +22,9 @@ export function AppLayout() {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  if (loading) return <main className="workspace-setup-page">Loading workspace…</main>;
+  if (!workspace) return <WorkspaceSetup />;
 
   return (
     <div className="app-shell">
