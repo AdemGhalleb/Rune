@@ -1,4 +1,7 @@
-# Rune
+# Rune <p align="center">
+  <img src="apps/desktop/src-tauri/icons/icon.png" alt="Logo Placeholder" width="150" height="150">
+</p>
+
 
 **A local-first AI academic companion.**
 
