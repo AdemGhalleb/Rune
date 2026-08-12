@@ -19,8 +19,9 @@ const primaryNav: NavItem[] = [
 ];
 
 export function Sidebar() {
-  const { workspace } = useWorkspace();
+  const { workspace, syncStatusText, scanning, overview, triggerScan } = useWorkspace();
   const navigate = useNavigate();
+
   return (
     <aside className="sidebar" aria-label="Primary navigation">
       <div className="brand">
@@ -56,7 +57,23 @@ export function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
-        <div className="sync-card">Workspace scanning is not enabled yet.</div>
+        <div
+          className={`sync-card ${scanning ? "syncing" : ""}`}
+          onClick={() => void triggerScan()}
+          role="button"
+          tabIndex={0}
+          title="Click to check workspace for updates"
+        >
+          <div className="sync-status">
+            <span className={`status-dot ${scanning ? "status-warning" : "status-success"}`} />
+            <span>
+              <strong>{syncStatusText}</strong>
+              {overview && (
+                <small>{overview.total_files.toLocaleString()} files indexed</small>
+              )}
+            </span>
+          </div>
+        </div>
         <NavLink className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")} to="/settings">
           <Icon name="settings" size={20} />
           <span>Settings</span>

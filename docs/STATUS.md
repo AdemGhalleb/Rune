@@ -2,7 +2,7 @@
 
 This document tracks what is **actually built** versus what the README describes as product intent.
 
-Last updated: Phase 0, Step 2 (Persistent workspace)
+Last updated: Phase 1 — Workspace Intelligence & Incremental Filesystem Synchronization
 
 ## Phase 0 — Foundation
 
@@ -16,18 +16,28 @@ Last updated: Phase 0, Step 2 (Persistent workspace)
 | Local HTTP client (frontend → backend) | Done | Home page health check |
 | Dev scripts | Done | `npm run dev:all`, `scripts/setup.ps1` |
 | CI (lint + test) | Done | GitHub Actions |
-| SQLite database + Alembic migrations | Done | Database is migrated on backend startup in Rune's local application-data directory. |
+| SQLite database + Alembic migrations | Done | SQLite WAL mode enabled on connection; database is migrated on backend startup in Rune's app data directory. |
 | Persistent workspace selection API | Done | `GET/PUT/PATCH/DELETE /api/v1/workspace`; validates an existing directory and persists only its location. |
-| Workspace selection frontend flow | Done | First launch prompts for a folder; later launches load the saved selection. No scanning or indexing occurs. |
-| Provider abstraction (Ollama) | Not started | Phase 0 Step 2 |
-| Tauri backend lifecycle (spawn/kill) | Not started | Phase 0 Step 2 |
+| Workspace selection frontend flow | Done | First launch prompts for a folder; later launches load the saved selection. |
+
+## Phase 1 — Workspace Intelligence & Incremental Synchronization
+
+| Component | Status | Notes |
+|---|---|---|
+| Incremental recursive scanner | Done | Fast initial `stat` traversal, ignores build/vcs dirs (`node_modules`, `.git`, `.venv`, etc.), symlink boundary validation, unreadable file error isolation. |
+| Category & Extension Resolver | Done | Maps extensions to `document`, `note`, `presentation`, `spreadsheet`, `code`, `image`, `archive`, `unknown`. |
+| Lazy SHA-256 Hasher | Done | Chunked hashing on demand when size/mtime change; avoids reading unchanged files into memory. |
+| Incremental Change Detector | Done | Classifies files as `NEW`, `UNCHANGED`, `MODIFIED`, `DELETED`, `IGNORED`, `ERROR`. Detects renames by `(size_bytes, content_hash)` match within single scan. Batched DB commits (200 records). |
+| Background Scan Runner | Done | In-process thread-safe manager using `asyncio.to_thread`. Enforces single-flight per workspace. Live progress reporting (`files_discovered`, `files_processed`). Per-file cancellation check. |
+| Workspace Scanning & Overview APIs | Done | `POST /scan`, `GET /scan/latest`, `POST /scan/cancel`, `GET /overview`, `GET /files`. |
+| Frontend Status Integration | Done | Auto silent background scanning on workspace select/load, human-friendly status indicator in Sidebar, live paginated file list & search in Documents view. |
 
 ## MVP Features (from README roadmap)
 
 | Feature | Status |
 |---|---|
-| Workspace selection & persistence | Done — location only; no file scanning, indexing, or watching |
-| Workspace indexing & sync | Not started |
+| Workspace selection & persistence | Done |
+| Workspace indexing & sync | Done (Phase 1 metadata scan & incremental sync complete; vector embedding pipeline to follow in Phase 2) |
 | RAG chat | Not started |
 | Persistent memory | Not started |
 | Local LLM (Ollama) | Not started |
@@ -37,10 +47,6 @@ Last updated: Phase 0, Step 2 (Persistent workspace)
 ## How to verify this milestone
 
 ```bash
-# Setup (once)
-./scripts/setup.ps1        # Windows
-# ./scripts/setup.sh       # macOS/Linux
-
 # Terminal 1 — backend
 npm run dev:backend
 
@@ -51,26 +57,8 @@ npm run dev
 npm run dev:all
 ```
 
-Open http://localhost:1420 — the Home page should show backend status `ok`.
-
+Run test suite:
 ```bash
 npm run test:backend
+npm run lint
 ```
-
-## Persistent workspace developer note
-
-Rune stores its SQLite database at `%LOCALAPPDATA%\\Rune\\rune.db` on Windows (or
-`~/.local/Rune/rune.db` when `LOCALAPPDATA` is unavailable). Set `DATA_DIR` to use a
-different location for local development or tests. SQLite runs in WAL mode for the
-single-user desktop workload.
-
-The backend upgrades the database to the latest Alembic revision during startup. To
-run migrations manually from `apps/backend`, use:
-
-```bash
-alembic upgrade head
-```
-
-The `workspaces` table deliberately contains only the currently selected academic
-folder's path, display name, and timestamps. Selecting a folder validates and saves
-that location; Rune does not scan, index, copy, or watch its contents in this phase.
