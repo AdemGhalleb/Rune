@@ -1,12 +1,12 @@
 """Database repository for WorkspaceFile, DocumentProcessing, and ScanJob models."""
 
-from datetime import datetime, timezone
-from typing import Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import DocumentProcessing, FsStatus, ScanJob, ScanJobStatus, WorkspaceFile
+from app.db.models import FsStatus, ScanJob, ScanJobStatus, WorkspaceFile
 
 
 class WorkspaceFileRepository:
@@ -30,7 +30,7 @@ class WorkspaceFileRepository:
         job = ScanJob(
             workspace_id=workspace_id,
             status=ScanJobStatus.RUNNING.value,
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             files_discovered=0,
             files_processed=0,
         )
@@ -67,8 +67,13 @@ class WorkspaceFileRepository:
             job.files_processed = files_processed
         if status is not None:
             job.status = status
-            if status in (ScanJobStatus.COMPLETED.value, ScanJobStatus.FAILED.value, ScanJobStatus.CANCELLED.value):
-                job.finished_at = datetime.now(timezone.utc)
+            terminal_statuses = (
+                ScanJobStatus.COMPLETED.value,
+                ScanJobStatus.FAILED.value,
+                ScanJobStatus.CANCELLED.value,
+            )
+            if status in terminal_statuses:
+                job.finished_at = datetime.now(UTC)
         if error is not None:
             job.error = error
         session.commit()
@@ -118,7 +123,9 @@ class WorkspaceFileRepository:
         by_status = {st: count for st, count in session.execute(status_stmt).all()}
 
         # Pending changes (new + modified)
-        pending_changes = by_status.get(FsStatus.NEW.value, 0) + by_status.get(FsStatus.MODIFIED.value, 0)
+        pending_changes = (
+            by_status.get(FsStatus.NEW.value, 0) + by_status.get(FsStatus.MODIFIED.value, 0)
+        )
 
         # Recently modified files (top 5)
         recent_stmt = (
@@ -155,7 +162,9 @@ class WorkspaceFileRepository:
         limit: int = 100,
     ) -> tuple[Sequence[WorkspaceFile], int]:
         stmt = select(WorkspaceFile).where(WorkspaceFile.workspace_id == workspace_id)
-        count_stmt = select(func.count(WorkspaceFile.id)).where(WorkspaceFile.workspace_id == workspace_id)
+        count_stmt = select(func.count(WorkspaceFile.id)).where(
+            WorkspaceFile.workspace_id == workspace_id
+        )
 
         if category:
             stmt = stmt.where(WorkspaceFile.category == category)
@@ -165,11 +174,13 @@ class WorkspaceFileRepository:
             count_stmt = count_stmt.where(WorkspaceFile.fs_status == fs_status)
         if search:
             pattern = f"%{search.strip()}%"
-            stmt = stmt.where(WorkspaceFile.filename.ilike(pattern) | WorkspaceFile.relative_path.ilike(pattern))
-            count_stmt = count_stmt.where(
-                WorkspaceFile.filename.ilike(pattern) | WorkspaceFile.relative_path.ilike(pattern)
-            )
+            search_filter = WorkspaceFile.filename.ilike(
+                pattern
+            ) | WorkspaceFile.relative_path.ilike(pattern)
+            stmt = stmt.where(search_filter)
+            count_stmt = count_stmt.where(search_filter)
 
         total_count = session.scalar(count_stmt) or 0
-        items = session.scalars(stmt.order_by(WorkspaceFile.relative_path.asc()).offset(offset).limit(limit)).all()
+        ordered_stmt = stmt.order_by(WorkspaceFile.relative_path.asc()).offset(offset).limit(limit)
+        items = session.scalars(ordered_stmt).all()
         return items, total_count

@@ -1,6 +1,7 @@
 """Pydantic schemas for workspace scan, file list, and overview statistics."""
 
 from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 

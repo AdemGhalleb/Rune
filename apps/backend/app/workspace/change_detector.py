@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -41,13 +41,15 @@ class IncrementalChangeDetector:
     ) -> dict[str, int]:
         """Perform incremental change detection and persist results to SQLite."""
         existing_records = self.repository.get_by_workspace(session, workspace_id)
-        existing_by_relpath: dict[str, WorkspaceFile] = {f.relative_path: f for f in existing_records}
+        existing_by_relpath: dict[str, WorkspaceFile] = {
+            f.relative_path: f for f in existing_records
+        }
 
         new_candidates: list[tuple[DiscoveredFile, str | None]] = []
         matched_existing_ids: set[int] = set()
 
         processed_count = 0
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
 
         # Step 1 & 2: Evaluate discovered files against existing DB records
         for disc in discovered_files:
@@ -114,9 +116,17 @@ class IncrementalChangeDetector:
                 # Cheap check: compare size and mtime (within 0.001s timestamp resolution)
                 size_matches = disc.size_bytes == rec.size_bytes
 
-                disc_ts = disc.modified_at.replace(tzinfo=timezone.utc).timestamp() if disc.modified_at.tzinfo is None else disc.modified_at.timestamp()
-                rec_ts = rec.modified_at.replace(tzinfo=timezone.utc).timestamp() if rec.modified_at.tzinfo is None else rec.modified_at.timestamp()
-                mtime_matches = abs(disc_ts - rec_ts) < 0.001
+                disc_dt = (
+                    disc.modified_at.replace(tzinfo=UTC)
+                    if disc.modified_at.tzinfo is None
+                    else disc.modified_at
+                )
+                rec_dt = (
+                    rec.modified_at.replace(tzinfo=UTC)
+                    if rec.modified_at.tzinfo is None
+                    else rec.modified_at
+                )
+                mtime_matches = abs(disc_dt.timestamp() - rec_dt.timestamp()) < 0.001
 
                 if size_matches and mtime_matches and rec.fs_status != FsStatus.DELETED.value:
                     rec.fs_status = FsStatus.UNCHANGED.value

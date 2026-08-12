@@ -1,7 +1,17 @@
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -9,7 +19,7 @@ class Base(DeclarativeBase):
     """Base class for all ORM models."""
 
 
-class FsStatus(str, Enum):
+class FsStatus(StrEnum):
     NEW = "new"
     UNCHANGED = "unchanged"
     MODIFIED = "modified"
@@ -18,7 +28,7 @@ class FsStatus(str, Enum):
     ERROR = "error"
 
 
-class DocProcessingStatus(str, Enum):
+class DocProcessingStatus(StrEnum):
     UNPROCESSED = "unprocessed"
     PARSED = "parsed"
     CHUNKED = "chunked"
@@ -26,7 +36,7 @@ class DocProcessingStatus(str, Enum):
     FAILED = "failed"
 
 
-class ScanJobStatus(str, Enum):
+class ScanJobStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -65,7 +75,9 @@ class WorkspaceFile(Base):
 
     __tablename__ = "workspace_files"
     __table_args__ = (
-        UniqueConstraint("workspace_id", "relative_path", name="uq_workspace_files_workspace_relpath"),
+        UniqueConstraint(
+            "workspace_id", "relative_path", name="uq_workspace_files_workspace_relpath"
+        ),
         Index("ix_workspace_files_workspace_status", "workspace_id", "fs_status"),
     )
 
@@ -96,7 +108,10 @@ class WorkspaceFile(Base):
 
     workspace: Mapped[Workspace] = relationship("Workspace", back_populates="files")
     doc_processing: Mapped["DocumentProcessing | None"] = relationship(
-        "DocumentProcessing", back_populates="workspace_file", uselist=False, cascade="all, delete-orphan"
+        "DocumentProcessing",
+        back_populates="workspace_file",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
 
 
@@ -116,7 +131,9 @@ class DocumentProcessing(Base):
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default=DocProcessingStatus.UNPROCESSED.value
     )
-    last_processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_processed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -128,7 +145,9 @@ class DocumentProcessing(Base):
         onupdate=func.now(),
     )
 
-    workspace_file: Mapped[WorkspaceFile] = relationship("WorkspaceFile", back_populates="doc_processing")
+    workspace_file: Mapped[WorkspaceFile] = relationship(
+        "WorkspaceFile", back_populates="doc_processing"
+    )
 
 
 class ScanJob(Base):
@@ -140,7 +159,9 @@ class ScanJob(Base):
     workspace_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default=ScanJobStatus.QUEUED.value)
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=ScanJobStatus.QUEUED.value
+    )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     files_discovered: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -157,4 +178,3 @@ class ScanJob(Base):
     )
 
     workspace: Mapped[Workspace] = relationship("Workspace", back_populates="scan_jobs")
-

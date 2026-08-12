@@ -4,7 +4,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.db.models import FsStatus, Workspace, WorkspaceFile
+from app.db.models import FsStatus, Workspace
 from app.db.workspace_file_repository import WorkspaceFileRepository
 from app.workspace.change_detector import IncrementalChangeDetector, ScanCancelledError
 from app.workspace.scanner import WorkspaceScanner

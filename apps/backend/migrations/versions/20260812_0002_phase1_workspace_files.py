@@ -47,9 +47,13 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["workspace_id"], ["workspaces.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("workspace_id", "relative_path", name="uq_workspace_files_workspace_relpath"),
+        sa.UniqueConstraint(
+            "workspace_id", "relative_path", name="uq_workspace_files_workspace_relpath"
+        ),
     )
-    op.create_index("ix_workspace_files_workspace_id", "workspace_files", ["workspace_id"], unique=False)
+    op.create_index(
+        "ix_workspace_files_workspace_id", "workspace_files", ["workspace_id"], unique=False
+    )
     op.create_index(
         "ix_workspace_files_workspace_status",
         "workspace_files",

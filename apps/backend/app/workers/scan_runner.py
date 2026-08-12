@@ -37,7 +37,11 @@ class ScanManager:
             # Check if scan is already active for this workspace
             active = self._active_scans.get(workspace_id)
             if active and not active.task.done():
-                logger.info("Scan job already running for workspace %s (job %s)", workspace_id, active.job_id)
+                logger.info(
+                    "Scan job already running for workspace %s (job %s)",
+                    workspace_id,
+                    active.job_id,
+                )
                 with self.session_factory() as session:
                     existing_job = session.get(ScanJob, active.job_id)
                     if existing_job:
@@ -71,7 +75,9 @@ class ScanManager:
                 return False
 
             active.cancel_event.set()
-            logger.info("Cancellation requested for workspace %s (job %s)", workspace_id, active.job_id)
+            logger.info(
+                "Cancellation requested for workspace %s (job %s)", workspace_id, active.job_id
+            )
             return True
 
     def is_scan_running(self, workspace_id: int) -> bool:
@@ -81,7 +87,7 @@ class ScanManager:
     async def _run_scan_task(
         self, job_id: int, workspace_id: int, root_path: Path, cancel_event: asyncio.Event
     ) -> None:
-        """Execute filesystem discovery and change detection in thread pool off the main event loop."""
+        """Execute discovery and change detection off the main event loop."""
         try:
             logger.info("Starting scan task for workspace %s (job %s)", workspace_id, job_id)
 
@@ -139,7 +145,9 @@ class ScanManager:
                     session, job_id, status=ScanJobStatus.CANCELLED.value
                 )
         except Exception as err:
-            logger.exception("Scan task failed for workspace %s (job %s): %s", workspace_id, job_id, err)
+            logger.exception(
+                "Scan task failed for workspace %s (job %s): %s", workspace_id, job_id, err
+            )
             with self.session_factory() as session:
                 self.repository.update_scan_job_progress(
                     session, job_id, status=ScanJobStatus.FAILED.value, error=str(err)

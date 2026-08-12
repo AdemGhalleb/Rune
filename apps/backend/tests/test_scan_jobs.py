@@ -1,10 +1,8 @@
 """Tests for ScanManager background scan job runner."""
 
-import asyncio
 from pathlib import Path
 
 import pytest
-from sqlalchemy.orm import Session
 
 from app.db.models import ScanJobStatus, Workspace
 from app.db.workspace_file_repository import WorkspaceFileRepository
@@ -88,6 +86,7 @@ async def test_scan_runner_cancellation(session_factory, tmp_path: Path):
 
     runner = ScanManager(session_factory)
     job = await runner.start_scan(ws_id)
+    assert job.id is not None
 
     # Cancel immediately
     cancelled = await runner.cancel_scan(ws_id)

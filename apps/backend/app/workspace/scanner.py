@@ -3,7 +3,7 @@
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.workspace.category import categorize_file
@@ -43,7 +43,9 @@ class WorkspaceScanner:
     def scan(self) -> list[DiscoveredFile]:
         """Scan workspace recursively, returning cheap metadata for discovered files."""
         if not self.root_path.exists() or not self.root_path.is_dir():
-            logger.warning("Workspace root path does not exist or is not a directory: %s", self.root_path)
+            logger.warning(
+                "Workspace root path does not exist or is not a directory: %s", self.root_path
+            )
             return []
 
         discovered: list[DiscoveredFile] = []
@@ -85,7 +87,7 @@ class WorkspaceScanner:
                     try:
                         stat_res = entry.stat(follow_symlinks=False)
                         size_bytes = stat_res.st_size
-                        mtime_dt = datetime.fromtimestamp(stat_res.st_mtime, tz=timezone.utc)
+                        mtime_dt = datetime.fromtimestamp(stat_res.st_mtime, tz=UTC)
                         ext = entry_path.suffix.lower()
                         cat = categorize_file(ext)
 
@@ -103,7 +105,9 @@ class WorkspaceScanner:
                         )
                     except Exception as stat_err:
                         # Broad exception handling for unreadable/cloud sync placeholder files
-                        logger.warning("Error reading metadata for file %s: %s", entry_path, stat_err)
+                        logger.warning(
+                            "Error reading metadata for file %s: %s", entry_path, stat_err
+                        )
                         ext = entry_path.suffix.lower()
                         out_files.append(
                             DiscoveredFile(
@@ -112,14 +116,18 @@ class WorkspaceScanner:
                                 extension=ext,
                                 category=categorize_file(ext),
                                 size_bytes=0,
-                                modified_at=datetime.now(timezone.utc),
+                                modified_at=datetime.now(UTC),
                                 is_ignored=ignored,
                                 has_error=True,
                                 error_detail=str(stat_err),
                             )
                         )
             except Exception as entry_err:
-                logger.warning("Unexpected error inspecting directory entry in %s: %s", current_dir, entry_err)
+                logger.warning(
+                    "Unexpected error inspecting directory entry in %s: %s",
+                    current_dir,
+                    entry_err,
+                )
                 continue
 
     def _to_relative_path(self, target_path: Path) -> str | None:
