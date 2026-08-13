@@ -72,12 +72,12 @@ Rune is a **modular monolith**, not a microservices system. A single backend pro
 
 ```mermaid
 flowchart TD
-    A[Desktop Frontend <br/> (Tauri + React + TypeScript)] -->|local HTTP| B[Local Backend <br/> (FastAPI), single process]
+    A[Desktop Frontend <br/> Tauri + React + TypeScript] -->|local HTTP| B[Local Backend <br/> FastAPI, single process]
     B --> C[Workspace Synchronization <br/> file watcher · change detection · indexing queue]
     C --> D[Document Processing Pipeline <br/> extraction · chunking · embeddings · metadata]
-    D --> E[Knowledge Storage <br/> (SQLite) + Vector Database]
+    D --> E[Knowledge Storage <br/> SQLite + Vector Database]
     E --> F[AI Reasoning Layer <br/> retrieval · memory · prompt construction]
-    F --> G[LLM Providers <br/> (Ollama · OpenAI · others)]
+    F --> G[LLM Providers <br/> Ollama · OpenAI · others]
     B -.-> E
     F -.->|reads| E
 ```
