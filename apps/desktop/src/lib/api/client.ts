@@ -61,6 +61,36 @@ export interface WorkspaceOverview {
   latest_scan: ScanJob | null;
 }
 
+export interface DocumentSummary {
+  total_supported: number;
+  not_started: number;
+  processing: number;
+  ready: number;
+  failed: number;
+}
+
+export interface WorkspaceDocument {
+  id: number;
+  workspace_file_id: number;
+  filename: string;
+  relative_path: string;
+  extension: string;
+  category: string;
+  size_bytes: number;
+  fs_status: string;
+  modified_at: string;
+  extraction_status: string;
+  chunking_status: string;
+  document_status: "not_started" | "processing" | "ready" | "failed";
+}
+
+export interface WorkspaceDocumentList {
+  items: WorkspaceDocument[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
 function getBackendBaseUrl(): string {
   return import.meta.env.VITE_BACKEND_URL ?? DEFAULT_BACKEND_URL;
 }
@@ -154,4 +184,27 @@ export async function fetchWorkspaceFiles(params?: {
   const response = await fetch(`${getBackendBaseUrl()}/api/v1/workspace/files?${query.toString()}`);
   if (!response.ok) throw new Error(`Backend returned ${response.status}`);
   return response.json() as Promise<WorkspaceFileList>;
+}
+
+export async function fetchWorkspaceDocumentSummary(): Promise<DocumentSummary> {
+  const response = await fetch(`${getBackendBaseUrl()}/api/v1/workspace/documents/summary`);
+  if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+  return response.json() as Promise<DocumentSummary>;
+}
+
+export async function fetchWorkspaceDocuments(params?: {
+  document_status?: string;
+  search?: string;
+  offset?: number;
+  limit?: number;
+}): Promise<WorkspaceDocumentList> {
+  const query = new URLSearchParams();
+  if (params?.document_status) query.set("document_status", params.document_status);
+  if (params?.search) query.set("search", params.search);
+  if (params?.offset !== undefined) query.set("offset", params.offset.toString());
+  if (params?.limit !== undefined) query.set("limit", params.limit.toString());
+
+  const response = await fetch(`${getBackendBaseUrl()}/api/v1/workspace/documents?${query.toString()}`);
+  if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+  return response.json() as Promise<WorkspaceDocumentList>;
 }

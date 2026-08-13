@@ -6,6 +6,9 @@ from sqlalchemy.orm import Session
 from app.db.repositories import WorkspaceRepository
 from app.db.workspace_file_repository import WorkspaceFileRepository
 from app.schemas.workspace_scan import (
+    DocumentItemResponse,
+    DocumentListResponse,
+    DocumentSummaryResponse,
     ScanJobResponse,
     WorkspaceFileListResponse,
     WorkspaceFileResponse,
@@ -94,6 +97,37 @@ class WorkspaceScanService:
         )
         item_responses = [WorkspaceFileResponse.model_validate(item) for item in items]
         return WorkspaceFileListResponse(
+            items=item_responses,
+            total=total,
+            offset=offset,
+            limit=limit,
+        )
+
+    def get_document_summary(self, session: Session) -> DocumentSummaryResponse:
+        workspace = self._get_required_workspace(session)
+        counts = self.file_repository.get_document_summary_counts(session, workspace.id)
+        return DocumentSummaryResponse(**counts)
+
+    def list_documents(
+        self,
+        session: Session,
+        *,
+        document_status: str | None = None,
+        search: str | None = None,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> DocumentListResponse:
+        workspace = self._get_required_workspace(session)
+        items, total = self.file_repository.list_documents(
+            session,
+            workspace.id,
+            document_status=document_status,
+            search=search,
+            offset=offset,
+            limit=limit,
+        )
+        item_responses = [DocumentItemResponse.model_validate(item) for item in items]
+        return DocumentListResponse(
             items=item_responses,
             total=total,
             offset=offset,

@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db.database import get_session
 from app.schemas.workspace import WorkspaceResponse, WorkspaceSetRequest, WorkspaceUpdateRequest
 from app.schemas.workspace_scan import (
+    DocumentListResponse,
+    DocumentSummaryResponse,
     ScanJobResponse,
     WorkspaceFileListResponse,
     WorkspaceOverviewResponse,
@@ -103,6 +105,30 @@ def list_workspace_files(
         session,
         category=category,
         fs_status=fs_status,
+        search=search,
+        offset=offset,
+        limit=limit,
+    )
+
+
+@router.get("/documents/summary", response_model=DocumentSummaryResponse)
+def get_document_summary(
+    session: Session = Depends(get_db_session),
+) -> DocumentSummaryResponse:
+    return WorkspaceScanService().get_document_summary(session)
+
+
+@router.get("/documents", response_model=DocumentListResponse)
+def list_workspace_documents(
+    document_status: str | None = Query(default=None),
+    search: str | None = Query(default=None),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=1000),
+    session: Session = Depends(get_db_session),
+) -> DocumentListResponse:
+    return WorkspaceScanService().list_documents(
+        session,
+        document_status=document_status,
         search=search,
         offset=offset,
         limit=limit,

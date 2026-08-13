@@ -793,6 +793,24 @@ small {
   color: var(--text-muted);
 }
 
+.documents-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.document-summary-stat {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.document-summary-stat strong {
+  font-size: 2rem;
+  line-height: 1;
+}
+
 .documents-toolbar {
   justify-content: space-between;
   gap: var(--space-5);

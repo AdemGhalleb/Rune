@@ -5,7 +5,12 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { fetchWorkspaceFiles, type WorkspaceFile } from "@/lib/api/client";
+import {
+  fetchWorkspaceDocumentSummary,
+  fetchWorkspaceDocuments,
+  type DocumentSummary,
+  type WorkspaceDocument,
+} from "@/lib/api/client";
 import { useWorkspace } from "@/lib/workspace/WorkspaceProvider";
 
 function formatBytes(bytes: number): string {
@@ -19,31 +24,34 @@ function formatBytes(bytes: number): string {
 export function DocumentsPage() {
   const { workspace, triggerScan, scanning } = useWorkspace();
   const [query, setQuery] = useState("");
-  const [files, setFiles] = useState<WorkspaceFile[]>([]);
-  const [totalFiles, setTotalFiles] = useState<number>(0);
+  const [documents, setDocuments] = useState<WorkspaceDocument[]>([]);
+  const [summary, setSummary] = useState<DocumentSummary | null>(null);
   const [loadingFiles, setLoadingFiles] = useState<boolean>(false);
 
   useEffect(() => {
     if (!workspace) {
-      setFiles([]);
-      setTotalFiles(0);
+      setDocuments([]);
+      setSummary(null);
       return;
     }
 
     let cancelled = false;
     setLoadingFiles(true);
 
-    fetchWorkspaceFiles({ search: query, limit: 100 })
-      .then((res) => {
+    Promise.all([
+      fetchWorkspaceDocumentSummary(),
+      fetchWorkspaceDocuments({ search: query || undefined, limit: 100 }),
+    ])
+      .then(([docSummary, docList]) => {
         if (!cancelled) {
-          setFiles(res.items);
-          setTotalFiles(res.total);
+          setSummary(docSummary);
+          setDocuments(docList.items);
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setFiles([]);
-          setTotalFiles(0);
+          setSummary(null);
+          setDocuments([]);
         }
       })
       .finally(() => {
@@ -55,6 +63,8 @@ export function DocumentsPage() {
     };
   }, [workspace, query, scanning]);
 
+  const totalDocuments = summary?.total_supported ?? documents.length;
+
   return (
     <section className="page page-wide">
       <header className="page-header dashboard-header">
@@ -63,7 +73,7 @@ export function DocumentsPage() {
           <h1>Your material, indexed in place.</h1>
           <p className="muted">
             {workspace
-              ? `Workspace: ${workspace.name} (${totalFiles.toLocaleString()} files)`
+              ? `Workspace: ${workspace.name} (${totalDocuments.toLocaleString()} supported documents)`
               : "Files are referenced where they live."}
           </p>
         </div>
@@ -72,6 +82,33 @@ export function DocumentsPage() {
           {scanning ? "Scanning…" : "Rescan workspace"}
         </Button>
       </header>
+
+      <div className="documents-summary-grid" aria-live="polite">
+        <Card>
+          <div className="document-summary-stat">
+            <span className="muted">Ready</span>
+            <strong>{summary?.ready ?? 0}</strong>
+          </div>
+        </Card>
+        <Card>
+          <div className="document-summary-stat">
+            <span className="muted">Processing</span>
+            <strong>{summary?.processing ?? 0}</strong>
+          </div>
+        </Card>
+        <Card>
+          <div className="document-summary-stat">
+            <span className="muted">Not started</span>
+            <strong>{summary?.not_started ?? 0}</strong>
+          </div>
+        </Card>
+        <Card>
+          <div className="document-summary-stat">
+            <span className="muted">Failed</span>
+            <strong>{summary?.failed ?? 0}</strong>
+          </div>
+        </Card>
+      </div>
 
       <Card>
         <div className="documents-toolbar">
@@ -83,19 +120,19 @@ export function DocumentsPage() {
               value={query}
             />
           </label>
-          <Button variant="secondary">{totalFiles} total items</Button>
+          <Button variant="secondary">{totalDocuments} supported</Button>
         </div>
 
         <div className="document-list" aria-live="polite">
           {loadingFiles && (
-            <div className="skeleton-preview" aria-label="Loading workspace files">
+            <div className="skeleton-preview" aria-label="Loading document index">
               <Skeleton className="skeleton-title" />
               <Skeleton />
               <Skeleton className="skeleton-short" />
             </div>
           )}
 
-          {!loadingFiles && files.length === 0 && (
+          {!loadingFiles && documents.length === 0 && (
             <EmptyState
               action={
                 <Button onClick={() => void triggerScan()} variant="primary">
@@ -104,8 +141,8 @@ export function DocumentsPage() {
               }
               description={
                 query
-                  ? `No files matching "${query}" were found.`
-                  : "Rune hasn't indexed any files in this workspace yet."
+                  ? `No supported documents matching "${query}" were found.`
+                  : "Rune hasn't indexed any supported documents in this workspace yet."
               }
               icon="folder"
               title="No documents found"
@@ -113,20 +150,20 @@ export function DocumentsPage() {
           )}
 
           {!loadingFiles &&
-            files.map((file) => (
+            documents.map((file) => (
               <div className="document-row" key={file.id}>
-                <span className={`file-icon file-${file.category}`}>
+                <span className={`file-icon file-${file.extension.replace('.', '') || 'txt'}`}>
                   <Icon name="fileText" size={18} />
                 </span>
                 <span className="document-title">
                   <strong>{file.filename}</strong>
                   <small>{file.relative_path}</small>
                 </span>
-                <Badge tone="neutral">{file.category}</Badge>
+                <Badge tone={documentStatusTone(file.document_status)}>{file.document_status.replace("_", " ")}</Badge>
                 <small className="muted">{formatBytes(file.size_bytes)}</small>
                 <span className="document-status">
                   <span className={`status-dot status-${fsStatusTone(file.fs_status)}`} />
-                  {file.fs_status}
+                  {file.document_status}
                 </span>
               </div>
             ))}
@@ -147,5 +184,18 @@ function fsStatusTone(status: string): "success" | "warning" | "error" | "info" 
       return "error";
     default:
       return "info";
+  }
+}
+
+function documentStatusTone(status: WorkspaceDocument["document_status"]): "neutral" | "warning" | "success" | "error" {
+  switch (status) {
+    case "ready":
+      return "success";
+    case "processing":
+      return "warning";
+    case "failed":
+      return "error";
+    default:
+      return "neutral";
   }
 }

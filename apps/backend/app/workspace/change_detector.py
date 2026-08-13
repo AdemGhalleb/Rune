@@ -7,7 +7,13 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.db.models import DocProcessingStatus, DocumentProcessing, FsStatus, WorkspaceFile
+from app.db.models import (
+    ChunkingStatus,
+    DocumentProcessing,
+    ExtractionStatus,
+    FsStatus,
+    WorkspaceFile,
+)
 from app.db.workspace_file_repository import WorkspaceFileRepository
 from app.workspace.hasher import compute_sha256
 from app.workspace.scanner import DiscoveredFile
@@ -245,7 +251,9 @@ class IncrementalChangeDetector:
 
             doc_proc = DocumentProcessing(
                 workspace_file_id=new_file.id,
-                status=DocProcessingStatus.UNPROCESSED.value,
+                extraction_status=ExtractionStatus.UNPROCESSED.value,
+                chunking_status=ChunkingStatus.NOT_CHUNKED.value,
+                source_content_hash=new_file.content_hash,
             )
             session.add(doc_proc)
 

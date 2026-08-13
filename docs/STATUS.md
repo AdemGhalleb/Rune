@@ -2,7 +2,7 @@
 
 This document tracks what is **actually built** versus what the README describes as product intent.
 
-Last updated: Phase 1 — Workspace Intelligence & Incremental Filesystem Synchronization
+Last updated: Phase 2 — Document ingestion backend scaffold and auto-enqueue handoff
 
 ## Phase 0 — Foundation
 
@@ -31,6 +31,19 @@ Last updated: Phase 1 — Workspace Intelligence & Incremental Filesystem Synchr
 | Background Scan Runner | Done | In-process thread-safe manager using `asyncio.to_thread`. Enforces single-flight per workspace. Live progress reporting (`files_discovered`, `files_processed`). Per-file cancellation check. |
 | Workspace Scanning & Overview APIs | Done | `POST /scan`, `GET /scan/latest`, `POST /scan/cancel`, `GET /overview`, `GET /files`. |
 | Frontend Status Integration | Done | Auto silent background scanning on workspace select/load, human-friendly status indicator in Sidebar, live paginated file list & search in Documents view. |
+
+## Phase 2 — Document Ingestion Backend
+
+| Component | Status | Notes |
+|---|---|---|
+| Dual-stage document processing model | Done | `document_processing` now tracks extraction and chunking independently with per-stage versions, hashes, error counts, and timestamps. |
+| Segment and chunk tables | Done | `document_segments` stores format-specific segments; `chunks` stores segment-local offsets and hashes with no token-count or embedding columns. |
+| Automatic scan-to-ingestion handoff | Done | `ScanManager` now enqueues supported new/changed files after a scan completes. |
+| Startup crash reconciliation | Done | Orphaned `extracting`/`chunking` rows are reset to retryable states on worker startup. |
+| Slim ingestion job marker table | Done | `document_processing_jobs` is marker-only (`id`, `workspace_id`, `status`, `started_at`, `finished_at`). |
+| Error-message sanitization | Done | Persisted extraction/chunking error messages are truncated and sanitized before storage. |
+| Document API surface | Partial | Backend processing exists; a dedicated document-status/retry API is still not exposed. |
+| Document UI | Partial | `Documents` still shows the workspace file list, not the four-state user-facing ingestion view. |
 
 ## MVP Features (from README roadmap)
 
@@ -62,3 +75,5 @@ Run test suite:
 npm run test:backend
 npm run lint
 ```
+
+Backend validation was last verified with `pytest` and `ruff check`; frontend validation with `npm run lint` and `npm run build`.

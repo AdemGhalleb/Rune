@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.models import ScanJob, ScanJobStatus, Workspace
 from app.db.workspace_file_repository import WorkspaceFileRepository
+from app.workers.document_runner import DocumentIngestionManager
 from app.workspace.change_detector import IncrementalChangeDetector, ScanCancelledError
 from app.workspace.scanner import WorkspaceScanner
 
@@ -28,6 +29,7 @@ class ScanManager:
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self.session_factory = session_factory
         self.repository = WorkspaceFileRepository()
+        self.document_manager = DocumentIngestionManager(session_factory)
         self._active_scans: dict[int, ActiveScan] = {}
         self._lock = asyncio.Lock()
 
@@ -131,6 +133,16 @@ class ScanManager:
                     )
 
             await asyncio.to_thread(perform_scan_and_sync)
+
+            try:
+                await self.document_manager.enqueue_workspace_documents(workspace_id)
+            except Exception as err:
+                logger.exception(
+                    "Document ingestion handoff failed for workspace %s (job %s): %s",
+                    workspace_id,
+                    job_id,
+                    err,
+                )
 
             with self.session_factory() as session:
                 self.repository.update_scan_job_progress(

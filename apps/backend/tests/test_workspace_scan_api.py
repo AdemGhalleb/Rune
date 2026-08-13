@@ -2,6 +2,13 @@ import asyncio
 
 from httpx import AsyncClient
 
+from app.db.models import (
+    ChunkingStatus,
+    DocumentProcessing,
+    ExtractionStatus,
+    WorkspaceFile,
+)
+
 
 async def test_scan_endpoints_without_workspace_return_404(client: AsyncClient):
     resp = await client.post("/api/v1/workspace/scan")
@@ -79,6 +86,83 @@ async def test_scan_overview_and_files_workflow(client: AsyncClient, tmp_path):
     assert search_resp.status_code == 200
     assert search_resp.json()["total"] == 1
     assert search_resp.json()["items"][0]["filename"] == "paper.pdf"
+
+
+async def test_document_summary_and_list_endpoints(client: AsyncClient, session_factory, tmp_path):
+    ws_dir = tmp_path / "document_docs"
+    ws_dir.mkdir()
+    (ws_dir / "ready.txt").write_text("ready")
+    (ws_dir / "failed.md").write_text("failed")
+    (ws_dir / "processing.pdf").write_text("processing")
+    (ws_dir / "pending.docx").write_text("pending")
+    (ws_dir / "notes.py").write_text("print('nope')")
+
+    set_resp = await client.put("/api/v1/workspace", json={"root_path": str(ws_dir)})
+    assert set_resp.status_code == 200
+
+    scan_resp = await client.post("/api/v1/workspace/scan")
+    assert scan_resp.status_code == 202
+
+    for _ in range(50):
+        latest_resp = await client.get("/api/v1/workspace/scan/latest")
+        if latest_resp.json()["status"] in ("completed", "failed", "cancelled"):
+            break
+        await asyncio.sleep(0.1)
+
+    with session_factory() as session:
+        files = {f.relative_path: f for f in session.query(WorkspaceFile).all()}
+        ready_dp = (
+            session.query(DocumentProcessing)
+            .filter_by(workspace_file_id=files["ready.txt"].id)
+            .one()
+        )
+        ready_dp.extraction_status = ExtractionStatus.EXTRACTED.value
+        ready_dp.chunking_status = ChunkingStatus.CHUNKED.value
+
+        failed_dp = (
+            session.query(DocumentProcessing)
+            .filter_by(workspace_file_id=files["failed.md"].id)
+            .one()
+        )
+        failed_dp.extraction_status = ExtractionStatus.FAILED.value
+        failed_dp.chunking_status = ChunkingStatus.NOT_CHUNKED.value
+
+        processing_dp = (
+            session.query(DocumentProcessing)
+            .filter_by(workspace_file_id=files["processing.pdf"].id)
+            .one()
+        )
+        processing_dp.extraction_status = ExtractionStatus.EXTRACTING.value
+        processing_dp.chunking_status = ChunkingStatus.NOT_CHUNKED.value
+
+        pending_dp = (
+            session.query(DocumentProcessing)
+            .filter_by(workspace_file_id=files["pending.docx"].id)
+            .one()
+        )
+        pending_dp.extraction_status = ExtractionStatus.UNPROCESSED.value
+        pending_dp.chunking_status = ChunkingStatus.NOT_CHUNKED.value
+
+        session.commit()
+
+    summary_resp = await client.get("/api/v1/workspace/documents/summary")
+    assert summary_resp.status_code == 200
+    summary = summary_resp.json()
+    assert summary["total_supported"] == 4
+    assert summary["not_started"] == 1
+    assert summary["processing"] == 1
+    assert summary["ready"] == 1
+    assert summary["failed"] == 1
+
+    list_resp = await client.get("/api/v1/workspace/documents")
+    assert list_resp.status_code == 200
+    items = list_resp.json()["items"]
+    assert len(items) == 4
+    statuses = {item["filename"]: item["document_status"] for item in items}
+    assert statuses["ready.txt"] == "ready"
+    assert statuses["failed.md"] == "failed"
+    assert statuses["processing.pdf"] == "processing"
+    assert statuses["pending.docx"] == "not_started"
 
 
 async def test_scan_cancel_endpoint(client: AsyncClient, tmp_path):
