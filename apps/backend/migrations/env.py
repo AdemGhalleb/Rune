@@ -3,10 +3,11 @@
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, event, pool
 
 from app.core.config import get_settings
 from app.db.models import Base
+from app.db.sqlite_vec import load_sqlite_vec_extension
 
 config = context.config
 
@@ -34,6 +35,11 @@ def run_migrations_online() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+    )
+    event.listen(
+        connectable,
+        "connect",
+        lambda dbapi_connection, _connection_record: load_sqlite_vec_extension(dbapi_connection),
     )
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)

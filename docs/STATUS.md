@@ -2,6 +2,13 @@
 
 This document tracks what is **actually built** versus what the README describes as product intent.
 
+## sqlite-vec bundling (Phase 3)
+
+`sqlite-vec` is loaded into every Python SQLite connection before application
+SQL or Alembic migrations run. Release packaging must pin and bundle the
+platform-specific `sqlite-vec` wheel (Windows, macOS, or Linux) with Rune's
+backend runtime; no system extension path is required.
+
 Last updated: Phase 2 — Document ingestion backend scaffold and auto-enqueue handoff
 
 ## Phase 0 — Foundation

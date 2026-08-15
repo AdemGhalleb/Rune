@@ -9,6 +9,7 @@ from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import Settings
+from app.db.sqlite_vec import load_sqlite_vec_extension
 
 
 def create_database_engine(settings: Settings) -> Engine:
@@ -21,6 +22,7 @@ def create_database_engine(settings: Settings) -> Engine:
 
     @event.listens_for(engine, "connect")
     def configure_sqlite_connection(dbapi_connection, _connection_record) -> None:
+        load_sqlite_vec_extension(dbapi_connection)
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.execute("PRAGMA journal_mode=WAL")
