@@ -65,6 +65,13 @@ class DocProcessingJobStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class EmbeddingStatus(StrEnum):
+    NOT_EMBEDDED = "not_embedded"
+    EMBEDDING = "embedding"
+    EMBEDDED = "embedded"
+    FAILED = "failed"
+
+
 class Workspace(Base):
     """The single academic workspace selected by the student."""
 
@@ -272,6 +279,50 @@ class Chunk(Base):
         "DocumentProcessing", back_populates="chunks"
     )
     segment: Mapped[DocumentSegment] = relationship("DocumentSegment", back_populates="chunks")
+    embedding: Mapped["ChunkEmbedding | None"] = relationship(
+        "ChunkEmbedding",
+        back_populates="chunk",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+
+class ChunkEmbedding(Base):
+    """Embedding state and metadata for a single chunk."""
+
+    __tablename__ = "chunk_embeddings"
+    __table_args__ = (
+        Index("ix_chunk_embeddings_workspace_status", "workspace_id", "status"),
+        Index("ix_chunk_embeddings_model_id", "embedding_model_id"),
+    )
+
+    chunk_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("chunks.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    workspace_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    embedding_model_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=EmbeddingStatus.NOT_EMBEDDED.value
+    )
+    content_hash_at_embedding: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    chunk: Mapped[Chunk] = relationship("Chunk", back_populates="embedding")
 
 
 class DocumentProcessingJob(Base):
