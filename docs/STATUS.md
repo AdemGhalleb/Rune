@@ -9,7 +9,7 @@ SQL or Alembic migrations run. Release packaging must pin and bundle the
 platform-specific `sqlite-vec` wheel (Windows, macOS, or Linux) with Rune's
 backend runtime; no system extension path is required.
 
-Last updated: Phase 4 — RAG chat transport, persistence, and Ollama integration
+Last updated: Phase 4 — RAG chat, live vector retrieval, citations, and Ollama integration
 
 ## Phase 0 — Foundation
 
@@ -58,11 +58,24 @@ Last updated: Phase 4 — RAG chat transport, persistence, and Ollama integratio
 |---|---|
 | Workspace selection & persistence | Done |
 | Workspace indexing & sync | Done (Phase 1 metadata scan & incremental sync complete; vector embedding pipeline to follow in Phase 2) |
-| RAG chat | Not started |
+| RAG chat | Done |
 | Persistent memory | Not started |
-| Local LLM (Ollama) | Not started |
+| Local LLM (Ollama) | Done |
 | Concept mastery tracking | Not started |
 | Practice generation | Not started |
+
+## Phase 3 — Embeddings & Vector Retrieval
+
+| Component | Status | Notes |
+|---|---|---|
+| Embedding provider | Done | Generates embeddings for processed chunks using the configured local embedding model. |
+| Embedding persistence | Done | Chunk embedding metadata is persisted and linked to the corresponding vector representation. |
+| sqlite-vec integration | Done | Vector extension is loaded before application SQL/migrations and bundled for supported platforms. |
+| Vector indexing | Done | Processed chunks are embedded and indexed incrementally. |
+| Similarity search | Done | Query embeddings are compared against workspace-scoped chunk vectors. |
+| Incremental embedding | Done | Unchanged chunks are not unnecessarily re-embedded; processing state/version changes trigger required updates. |
+| Retrieval metadata | Done | Retrieved vectors map back to chunks and workspace files for RAG citations. |
+| Workspace isolation | Done | Retrieval is scoped to the active workspace. |
 
 ## Phase 4 — RAG + AI Chat
 
