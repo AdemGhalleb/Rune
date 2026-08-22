@@ -64,7 +64,10 @@ class RagService:
             )
             remaining -= len(body)
         context = "\n\n".join(blocks) or "No relevant reference material was found."
-        prompt = f"{SYSTEM_PROMPT}\n\nConversation history:\n{history_text or '(none)'}\n\nReference material:\n{context}\n\nStudent question: {question}\nAnswer:"
+        prompt = (
+            f"{SYSTEM_PROMPT}\n\nConversation history:\n{history_text or '(none)'}"
+            f"\n\nReference material:\n{context}\n\nStudent question: {question}\nAnswer:"
+        )
         return RagPlan(prompt=prompt, sources=selected[: len(blocks)])
 
     async def stream(self, plan: RagPlan) -> AsyncIterator[str]:
