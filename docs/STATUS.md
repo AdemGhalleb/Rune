@@ -9,7 +9,7 @@ SQL or Alembic migrations run. Release packaging must pin and bundle the
 platform-specific `sqlite-vec` wheel (Windows, macOS, or Linux) with Rune's
 backend runtime; no system extension path is required.
 
-Last updated: Phase 2 — Document ingestion backend scaffold and auto-enqueue handoff
+Last updated: Phase 4 — RAG chat transport, persistence, and Ollama integration
 
 ## Phase 0 — Foundation
 
@@ -63,6 +63,19 @@ Last updated: Phase 2 — Document ingestion backend scaffold and auto-enqueue h
 | Local LLM (Ollama) | Not started |
 | Concept mastery tracking | Not started |
 | Practice generation | Not started |
+
+## Phase 4 — RAG + AI Chat
+
+| Component | Status | Notes |
+|---|---|---|
+| Conversation persistence | Done | Conversations, messages, and message-to-chunk citations are stored separately from workspace knowledge. |
+| Local LLM provider | Done | Ollama provider with a `llama3.2:3b` default, availability check, timeout/error handling, and streaming interface. |
+| Chat API and SSE transport | Done | Conversation CRUD, streamed `POST` messages, incremental assistant persistence, source endpoint, cancellation on disconnect, and startup reconciliation. |
+| RAG prompt boundary | Done | RAG service builds history/context prompts with explicit untrusted-reference delimiters, similarity threshold, de-duplication, per-document cap, and configurable budgets. |
+| Chat UI | Done | Conversation list, streamed messages, source chips, stop/error states, and an Ollama-unavailable banner. |
+| Live vector-store adapter | Done | Phase 3 now includes a sqlite-vec-backed chunk vector store with workspace-scoped similarity search, query embedding via the embedding provider, and retrieval metadata mapping back to chunk/workspace file rows. Chat automatically uses the live adapter when a workspace is selected. |
+
+Known limitation: disconnecting a stream stops Rune forwarding tokens and marks the message cancelled, but Ollama may continue computing briefly. Cloud-synced OneDrive placeholders retain the earlier ingestion limitation: files must be downloaded locally before Rune can process them.
 
 ## How to verify this milestone
 

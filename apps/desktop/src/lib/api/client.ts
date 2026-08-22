@@ -91,6 +91,12 @@ export interface WorkspaceDocumentList {
   limit: number;
 }
 
+export interface LlmStatus { available: boolean; model: string }
+export interface Conversation { id: number; title: string | null; created_at: string; updated_at: string }
+export interface ChatMessage { id: number; conversation_id: number; role: "user" | "assistant"; content: string; status: "pending" | "streaming" | "complete" | "failed" | "cancelled"; model_used: string | null; error: string | null; created_at: string; updated_at: string }
+export interface ConversationDetail extends Conversation { messages: ChatMessage[] }
+export interface MessageSource { id: number; chunk_id: number; workspace_file_id: number; filename: string; rank: number; relevance_score: number | null }
+
 function getBackendBaseUrl(): string {
   return import.meta.env.VITE_BACKEND_URL ?? DEFAULT_BACKEND_URL;
 }
@@ -105,6 +111,25 @@ export async function fetchHealth(): Promise<HealthResponse> {
 
 export function getBackendUrl(): string {
   return getBackendBaseUrl();
+}
+
+async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${getBackendBaseUrl()}${path}`, init);
+  if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+  return response.json() as Promise<T>;
+}
+
+export function fetchLlmStatus(): Promise<LlmStatus> { return apiJson("/api/v1/llm/status"); }
+export function fetchConversations(): Promise<Conversation[]> { return apiJson("/api/v1/conversations"); }
+export function createConversation(title?: string): Promise<Conversation> { return apiJson("/api/v1/conversations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) }); }
+export function fetchConversation(id: number): Promise<ConversationDetail> { return apiJson(`/api/v1/conversations/${id}`); }
+export function fetchMessageSources(id: number): Promise<MessageSource[]> { return apiJson(`/api/v1/messages/${id}/sources`); }
+
+export async function streamMessage(id: number, content: string, onEvent: (event: string, data: Record<string, unknown>) => void, signal: AbortSignal): Promise<void> {
+  const response = await fetch(`${getBackendBaseUrl()}/api/v1/conversations/${id}/messages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }), signal });
+  if (!response.ok || !response.body) throw new Error(`Backend returned ${response.status}`);
+  const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
+  for (;;) { const result = await reader.read(); if (result.done) break; buffer += decoder.decode(result.value, { stream: true }); const blocks = buffer.split("\n\n"); buffer = blocks.pop() ?? ""; for (const block of blocks) { const event = block.match(/^event: (.+)$/m)?.[1] ?? "message"; const raw = block.match(/^data: (.+)$/m)?.[1]; if (raw) onEvent(event, JSON.parse(raw) as Record<string, unknown>); } }
 }
 
 export async function fetchWorkspace(): Promise<Workspace | null> {

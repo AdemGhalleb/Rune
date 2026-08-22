@@ -10,6 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    Float,
     UniqueConstraint,
     func,
 )
@@ -70,6 +71,19 @@ class EmbeddingStatus(StrEnum):
     EMBEDDING = "embedding"
     EMBEDDED = "embedded"
     FAILED = "failed"
+
+
+class MessageRole(StrEnum):
+    USER = "user"
+    ASSISTANT = "assistant"
+
+
+class MessageStatus(StrEnum):
+    PENDING = "pending"
+    STREAMING = "streaming"
+    COMPLETE = "complete"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class Workspace(Base):
@@ -285,6 +299,49 @@ class Chunk(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    messages: Mapped[list["Message"]] = relationship("Message", back_populates="conversation", cascade="all, delete-orphan", order_by="Message.created_at")
+
+
+class Message(Base):
+    __tablename__ = "messages"
+    __table_args__ = (Index("ix_messages_conversation_created", "conversation_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default=MessageStatus.PENDING.value)
+    model_used: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    conversation: Mapped["Conversation"] = relationship("Conversation", back_populates="messages")
+    sources: Mapped[list["MessageSource"]] = relationship("MessageSource", back_populates="message", cascade="all, delete-orphan", order_by="MessageSource.rank")
+
+
+class MessageSource(Base):
+    __tablename__ = "message_sources"
+    __table_args__ = (UniqueConstraint("message_id", "chunk_id", name="uq_message_sources_message_chunk"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    message_id: Mapped[int] = mapped_column(Integer, ForeignKey("messages.id", ondelete="CASCADE"), nullable=False, index=True)
+    chunk_id: Mapped[int] = mapped_column(Integer, ForeignKey("chunks.id", ondelete="CASCADE"), nullable=False, index=True)
+    workspace_file_id: Mapped[int] = mapped_column(Integer, ForeignKey("workspace_files.id", ondelete="CASCADE"), nullable=False, index=True)
+    rank: Mapped[int] = mapped_column(Integer, nullable=False)
+    relevance_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    message: Mapped["Message"] = relationship("Message", back_populates="sources")
+    chunk: Mapped["Chunk"] = relationship("Chunk")
+    workspace_file: Mapped["WorkspaceFile"] = relationship("WorkspaceFile")
 
 
 class ChunkEmbedding(Base):

@@ -26,6 +26,13 @@ class Settings(BaseSettings):
 
     # Keep runtime data outside the source tree. Tests can override this setting.
     data_dir: Path = Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local")) / "Rune"
+    ollama_base_url: str = "http://127.0.0.1:11434"
+    ollama_model: str = "llama3.2:3b"
+    rag_top_k: int = 8
+    rag_similarity_threshold: float = 0.35
+    rag_max_chunks_per_document: int = 3
+    rag_context_token_budget: int = 2800
+    rag_history_token_budget: int = 1600
 
     @property
     def log_dir(self) -> Path:
