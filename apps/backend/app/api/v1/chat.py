@@ -12,8 +12,21 @@ from sqlalchemy.orm import Session, selectinload, sessionmaker
 from app.ai.providers.ollama import OllamaProvider
 from app.core.config import Settings
 from app.db.database import get_session
-from app.db.models import Conversation, Message, MessageRole, MessageSource, MessageStatus, WorkspaceFile
-from app.schemas.chat import ConversationCreate, ConversationDetail, ConversationResponse, MessageCreate, SourceResponse
+from app.db.models import (
+    Conversation,
+    Message,
+    MessageRole,
+    MessageSource,
+    MessageStatus,
+    WorkspaceFile,
+)
+from app.schemas.chat import (
+    ConversationCreate,
+    ConversationDetail,
+    ConversationResponse,
+    MessageCreate,
+    SourceResponse,
+)
 from app.services.rag import RagService
 from app.services.retrieval import RetrievalService
 from app.services.workspace import WorkspaceService
@@ -40,8 +53,12 @@ async def llm_status(request: Request) -> dict[str, object]:
     return {"available": await provider.is_available(), "model": provider.model}
 
 
-@router.post("/conversations", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED)
-def create_conversation(payload: ConversationCreate, session: Session = Depends(get_db_session)) -> Conversation:
+@router.post(
+    "/conversations", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED
+)
+def create_conversation(
+    payload: ConversationCreate, session: Session = Depends(get_db_session)
+) -> Conversation:
     conversation = Conversation(title=payload.title)
     session.add(conversation)
     session.commit()
@@ -51,13 +68,19 @@ def create_conversation(payload: ConversationCreate, session: Session = Depends(
 
 @router.get("/conversations", response_model=list[ConversationResponse])
 def list_conversations(session: Session = Depends(get_db_session)) -> list[Conversation]:
-    return list(session.scalars(select(Conversation).order_by(Conversation.updated_at.desc())).all())
+    return list(
+        session.scalars(select(Conversation).order_by(Conversation.updated_at.desc())).all()
+    )
 
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationDetail)
-def get_conversation(conversation_id: int, session: Session = Depends(get_db_session)) -> Conversation:
+def get_conversation(
+    conversation_id: int, session: Session = Depends(get_db_session)
+) -> Conversation:
     conversation = session.scalar(
-        select(Conversation).options(selectinload(Conversation.messages)).where(Conversation.id == conversation_id)
+        select(Conversation)
+        .options(selectinload(Conversation.messages))
+        .where(Conversation.id == conversation_id)
     )
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
@@ -65,14 +88,26 @@ def get_conversation(conversation_id: int, session: Session = Depends(get_db_ses
 
 
 @router.get("/messages/{message_id}/sources", response_model=list[SourceResponse])
-def get_message_sources(message_id: int, session: Session = Depends(get_db_session)) -> list[SourceResponse]:
+def get_message_sources(
+    message_id: int, session: Session = Depends(get_db_session)
+) -> list[SourceResponse]:
     rows = session.execute(
         select(MessageSource, WorkspaceFile.filename)
         .join(WorkspaceFile, MessageSource.workspace_file_id == WorkspaceFile.id)
         .where(MessageSource.message_id == message_id)
         .order_by(MessageSource.rank)
     ).all()
-    return [SourceResponse(id=s.id, chunk_id=s.chunk_id, workspace_file_id=s.workspace_file_id, filename=name, rank=s.rank, relevance_score=s.relevance_score) for s, name in rows]
+    return [
+        SourceResponse(
+            id=s.id,
+            chunk_id=s.chunk_id,
+            workspace_file_id=s.workspace_file_id,
+            filename=name,
+            rank=s.rank,
+            relevance_score=s.relevance_score,
+        )
+        for s, name in rows
+    ]
 
 
 def _sse(event: str, data: object) -> str:
@@ -80,25 +115,48 @@ def _sse(event: str, data: object) -> str:
 
 
 @router.post("/conversations/{conversation_id}/messages")
-async def send_message(conversation_id: int, payload: MessageCreate, request: Request) -> StreamingResponse:
+async def send_message(
+    conversation_id: int, payload: MessageCreate, request: Request
+) -> StreamingResponse:
     factory: sessionmaker[Session] = request.app.state.session_factory
     with factory() as session:
         conversation = session.get(Conversation, conversation_id)
         if conversation is None:
             raise HTTPException(status_code=404, detail="Conversation not found")
-        user = Message(conversation_id=conversation_id, role=MessageRole.USER.value, content=payload.content, status=MessageStatus.COMPLETE.value)
-        assistant = Message(conversation_id=conversation_id, role=MessageRole.ASSISTANT.value, content="", status=MessageStatus.PENDING.value, model_used=_provider(request).model)
+        user = Message(
+            conversation_id=conversation_id,
+            role=MessageRole.USER.value,
+            content=payload.content,
+            status=MessageStatus.COMPLETE.value,
+        )
+        assistant = Message(
+            conversation_id=conversation_id,
+            role=MessageRole.ASSISTANT.value,
+            content="",
+            status=MessageStatus.PENDING.value,
+            model_used=_provider(request).model,
+        )
         session.add_all([user, assistant])
         if not conversation.title:
             conversation.title = payload.content[:80]
         session.commit()
         assistant_id = assistant.id
-        history = [(m.role, m.content) for m in session.scalars(select(Message).where(Message.conversation_id == conversation_id).order_by(Message.created_at)).all()[:-1]]
+        history = [
+            (m.role, m.content)
+            for m in session.scalars(
+                select(Message)
+                .where(Message.conversation_id == conversation_id)
+                .order_by(Message.created_at)
+            ).all()[:-1]
+        ]
 
     with factory() as session:
         workspace = WorkspaceService().get_current(session)
     rag = RagService(
-        RetrievalService(getattr(request.app.state, "vector_store", None), workspace_id=workspace.id if workspace else None),
+        RetrievalService(
+            getattr(request.app.state, "vector_store", None),
+            workspace_id=workspace.id if workspace else None,
+        ),
         _provider(request),
         request.app.state.settings,
     )
@@ -138,7 +196,15 @@ async def send_message(conversation_id: int, payload: MessageCreate, request: Re
                     message.content = content
                     message.status = MessageStatus.COMPLETE.value
                     for rank, chunk in enumerate(plan.sources, start=1):
-                        session.add(MessageSource(message_id=message.id, chunk_id=chunk.chunk_id, workspace_file_id=chunk.workspace_file_id, rank=rank, relevance_score=chunk.score))
+                        session.add(
+                            MessageSource(
+                                message_id=message.id,
+                                chunk_id=chunk.chunk_id,
+                                workspace_file_id=chunk.workspace_file_id,
+                                rank=rank,
+                                relevance_score=chunk.score,
+                            )
+                        )
                     session.commit()
             yield _sse("complete", {"id": assistant_id})
         except Exception as err:
@@ -151,4 +217,8 @@ async def send_message(conversation_id: int, payload: MessageCreate, request: Re
                     session.commit()
             yield _sse("error", {"id": assistant_id, "error": str(err)[:500]})
 
-    return StreamingResponse(generate(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

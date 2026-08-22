@@ -104,4 +104,3 @@ async def test_scan_runner_cancellation(session_factory, tmp_path: Path):
         latest = repo.get_latest_scan_job(session, ws_id)
         assert latest is not None
         assert latest.status in (ScanJobStatus.CANCELLED.value, ScanJobStatus.COMPLETED.value)
-

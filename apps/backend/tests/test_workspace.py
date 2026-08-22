@@ -97,4 +97,3 @@ def test_default_data_dir_resolves_to_user_appdata():
     settings = Settings()
     assert "Rune" in str(settings.data_dir)
     assert str(settings.database_path).endswith("rune.db")
-

@@ -44,8 +44,12 @@ class OllamaProvider(LLMProvider):
             raise LLMProviderUnavailable("Ollama isn't running")
         payload = {"model": self.model, "prompt": prompt, "stream": True}
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout_seconds, connect=3.0)) as client:
-                async with client.stream("POST", f"{self.base_url}/api/generate", json=payload) as response:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(self.timeout_seconds, connect=3.0)
+            ) as client:
+                async with client.stream(
+                    "POST", f"{self.base_url}/api/generate", json=payload
+                ) as response:
                     response.raise_for_status()
                     async for line in response.aiter_lines():
                         if not line:
@@ -53,7 +57,9 @@ class OllamaProvider(LLMProvider):
                         try:
                             event = json.loads(line)
                         except json.JSONDecodeError as err:
-                            raise LLMProviderError("Ollama returned malformed streaming data") from err
+                            raise LLMProviderError(
+                                "Ollama returned malformed streaming data"
+                            ) from err
                         token = event.get("response")
                         if isinstance(token, str) and token:
                             yield token
@@ -90,7 +96,9 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
             raise EmbeddingProviderUnavailable("Ollama isn't running")
         payload = {"model": self.model, "input": text}
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout_seconds, connect=3.0)) as client:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(self.timeout_seconds, connect=3.0)
+            ) as client:
                 response = await client.post(f"{self.base_url}/api/embed", json=payload)
                 response.raise_for_status()
                 data = response.json()

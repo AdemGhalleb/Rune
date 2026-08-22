@@ -133,8 +133,8 @@ class WorkspaceFileRepository:
         by_status = {st: count for st, count in session.execute(status_stmt).all()}
 
         # Pending changes (new + modified)
-        pending_changes = (
-            by_status.get(FsStatus.NEW.value, 0) + by_status.get(FsStatus.MODIFIED.value, 0)
+        pending_changes = by_status.get(FsStatus.NEW.value, 0) + by_status.get(
+            FsStatus.MODIFIED.value, 0
         )
 
         # Recently modified files (top 5)
@@ -241,9 +241,7 @@ class WorkspaceFileRepository:
             synchronize_session=False
         )
 
-    def reconcile_orphaned_doc_processing_states(
-        self, session: Session, workspace_id: int
-    ) -> int:
+    def reconcile_orphaned_doc_processing_states(self, session: Session, workspace_id: int) -> int:
         """Reset abandoned in-flight document rows to retryable states."""
         stmt = (
             select(DocumentProcessing)
@@ -369,4 +367,3 @@ class WorkspaceFileRepository:
 
         total = len(items)
         return items[offset : offset + limit], total
-

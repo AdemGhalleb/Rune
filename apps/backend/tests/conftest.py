@@ -34,4 +34,3 @@ def session_factory(app):
 def db_session(session_factory):
     with session_factory() as session:
         yield session
-

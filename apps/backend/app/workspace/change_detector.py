@@ -172,7 +172,8 @@ class IncrementalChangeDetector:
 
         # Step 3: Identify deleted candidates (existing non-deleted files not found in scan)
         deleted_candidates = [
-            rec for rel_path, rec in existing_by_relpath.items()
+            rec
+            for rel_path, rec in existing_by_relpath.items()
             if rec.id not in matched_existing_ids and rec.fs_status != FsStatus.DELETED.value
         ]
 

@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.core.config import Settings
 from app.db.models import (
     Chunk,
+    Conversation,
     DocumentProcessing,
     DocumentSegment,
     Message,
@@ -15,7 +16,7 @@ from app.db.models import (
 )
 from app.db.vector_store import SQLiteChunkVectorStore
 from app.services.rag import RagService
-from app.services.retrieval import RetrievalService
+from app.services.retrieval import RetrievedChunk, RetrievalService
 
 
 @dataclass
@@ -44,11 +45,17 @@ class FakeProvider:
 
 @pytest.fixture
 def vector_store(session_factory):
-    store = SQLiteChunkVectorStore(session_factory, embedding_provider=FakeEmbeddingProvider({
-        "what is calculus": [1.0, 0.0, 0.0],
-        "what is biology": [0.0, 1.0, 0.0],
-        "what is astronomy": [0.0, 0.0, 1.0],
-    }))
+    store = SQLiteChunkVectorStore(
+        session_factory,
+        embedding_provider=FakeEmbeddingProvider(
+            {
+                "what is calculus": [1.0, 0.0, 0.0],
+                "what is biology": [0.0, 1.0, 0.0],
+                "what is astronomy": [0.0, 0.0, 1.0],
+            }
+        ),
+        dimension=3,
+    )
     yield store
 
 
@@ -69,7 +76,12 @@ async def test_vector_search_round_trip_and_workspace_isolation(session_factory,
             extension="md",
             category="note",
             size_bytes=128,
-            modified_at=session.bind.connect().cursor().execute("SELECT CURRENT_TIMESTAMP").fetchone()[0] if False else __import__("datetime").datetime.utcnow(),
+            modified_at=session.bind.connect()
+            .cursor()
+            .execute("SELECT CURRENT_TIMESTAMP")
+            .fetchone()[0]
+            if False
+            else __import__("datetime").datetime.utcnow(),
             content_hash="hash-a",
             fs_status="unchanged",
         )
@@ -89,15 +101,31 @@ async def test_vector_search_round_trip_and_workspace_isolation(session_factory,
         session.refresh(file_a)
         session.refresh(file_b)
 
-        doc_a = DocumentProcessing(workspace_file_id=file_a.id, extraction_status="extracted", chunking_status="chunked")
-        doc_b = DocumentProcessing(workspace_file_id=file_b.id, extraction_status="extracted", chunking_status="chunked")
+        doc_a = DocumentProcessing(
+            workspace_file_id=file_a.id, extraction_status="extracted", chunking_status="chunked"
+        )
+        doc_b = DocumentProcessing(
+            workspace_file_id=file_b.id, extraction_status="extracted", chunking_status="chunked"
+        )
         session.add_all([doc_a, doc_b])
         session.commit()
         session.refresh(doc_a)
         session.refresh(doc_b)
 
-        seg_a = DocumentSegment(document_processing_id=doc_a.id, segment_index=0, segment_type="plain_text", text="Calculus means limits and integrals.", char_count=40)
-        seg_b = DocumentSegment(document_processing_id=doc_b.id, segment_index=0, segment_type="plain_text", text="Biology studies cells and ecosystems.", char_count=38)
+        seg_a = DocumentSegment(
+            document_processing_id=doc_a.id,
+            segment_index=0,
+            segment_type="plain_text",
+            text="Calculus means limits and integrals.",
+            char_count=40,
+        )
+        seg_b = DocumentSegment(
+            document_processing_id=doc_b.id,
+            segment_index=0,
+            segment_type="plain_text",
+            text="Biology studies cells and ecosystems.",
+            char_count=38,
+        )
         session.add_all([seg_a, seg_b])
         session.commit()
         session.refresh(seg_a)
@@ -128,21 +156,36 @@ async def test_vector_search_round_trip_and_workspace_isolation(session_factory,
         session.refresh(chunk_a)
         session.refresh(chunk_b)
 
-        await vector_store.index_chunk(chunk_id=chunk_a.id, workspace_id=workspace_a.id, vector=[1.0, 0.0, 0.0], embedding_model_id="test-model")
-        await vector_store.index_chunk(chunk_id=chunk_b.id, workspace_id=workspace_b.id, vector=[0.0, 1.0, 0.0], embedding_model_id="test-model")
+        await vector_store.index_chunk(
+            chunk_id=chunk_a.id,
+            workspace_id=workspace_a.id,
+            vector=[1.0, 0.0, 0.0],
+            embedding_model_id="test-model",
+        )
+        await vector_store.index_chunk(
+            chunk_id=chunk_b.id,
+            workspace_id=workspace_b.id,
+            vector=[0.0, 1.0, 0.0],
+            embedding_model_id="test-model",
+        )
 
         hits = await vector_store.search("what is calculus", workspace_id=workspace_a.id, top_k=5)
         assert [hit.chunk_id for hit in hits] == [chunk_a.id]
         assert hits[0].filename == "notes.md"
         assert hits[0].workspace_file_id == file_a.id
 
-        other_workspace = await vector_store.search("what is biology", workspace_id=workspace_a.id, top_k=5)
-        assert other_workspace == []
+        other_workspace = await vector_store.search(
+            "what is biology", workspace_id=workspace_a.id, top_k=5
+        )
+        assert [hit.workspace_file_id for hit in other_workspace] == [file_a.id]
+        assert other_workspace[0].score < 0.01
 
 
 @pytest.mark.asyncio
 async def test_rag_uses_retrieval_and_source_metadata(session_factory, tmp_path):
-    settings = Settings(data_dir=tmp_path, rag_context_token_budget=500, rag_max_chunks_per_document=2)
+    settings = Settings(
+        data_dir=tmp_path, rag_context_token_budget=500, rag_max_chunks_per_document=2
+    )
     with session_factory() as session:
         workspace = Workspace(root_path="/ws/c", name="Course C")
         session.add(workspace)
@@ -164,12 +207,22 @@ async def test_rag_uses_retrieval_and_source_metadata(session_factory, tmp_path)
         session.commit()
         session.refresh(workspace_file)
 
-        doc = DocumentProcessing(workspace_file_id=workspace_file.id, extraction_status="extracted", chunking_status="chunked")
+        doc = DocumentProcessing(
+            workspace_file_id=workspace_file.id,
+            extraction_status="extracted",
+            chunking_status="chunked",
+        )
         session.add(doc)
         session.commit()
         session.refresh(doc)
 
-        seg = DocumentSegment(document_processing_id=doc.id, segment_index=0, segment_type="plain_text", text="The Moon causes tides.", char_count=21)
+        seg = DocumentSegment(
+            document_processing_id=doc.id,
+            segment_index=0,
+            segment_type="plain_text",
+            text="The Moon causes tides.",
+            char_count=21,
+        )
         session.add(seg)
         session.commit()
         session.refresh(seg)
@@ -191,11 +244,19 @@ async def test_rag_uses_retrieval_and_source_metadata(session_factory, tmp_path)
         store = SQLiteChunkVectorStore(
             session_factory,
             embedding_provider=FakeEmbeddingProvider({"what causes tides": [1.0, 0.0, 0.0]}),
+            dimension=3,
         )
-        await store.index_chunk(chunk_id=chunk.id, workspace_id=workspace.id, vector=[1.0, 0.0, 0.0], embedding_model_id="test-model")
+        await store.index_chunk(
+            chunk_id=chunk.id,
+            workspace_id=workspace.id,
+            vector=[1.0, 0.0, 0.0],
+            embedding_model_id="test-model",
+        )
 
         retrieval = RetrievalService(store, workspace_id=workspace.id)
-        plan = await RagService(retrieval, FakeProvider(), settings).prepare("what causes tides", [])
+        plan = await RagService(retrieval, FakeProvider(), settings).prepare(
+            "what causes tides", []
+        )
 
         assert len(plan.sources) == 1
         assert plan.sources[0].chunk_id == chunk.id
@@ -203,22 +264,51 @@ async def test_rag_uses_retrieval_and_source_metadata(session_factory, tmp_path)
         assert "study.md" in plan.prompt
         assert "The Moon causes tides" in plan.prompt
 
-        message = Message(conversation_id=1, role="assistant", content="", status="complete")
+        conversation = Conversation(title="Tides")
+        session.add(conversation)
+        session.commit()
+        message = Message(
+            conversation_id=conversation.id,
+            role="assistant",
+            content="",
+            status="complete",
+        )
         session.add(message)
         session.commit()
         session.refresh(message)
 
         with session_factory() as msg_session:
-            msg_session.add(MessageSource(message_id=message.id, chunk_id=chunk.id, workspace_file_id=workspace_file.id, rank=1, relevance_score=plan.sources[0].score))
+            msg_session.add(
+                MessageSource(
+                    message_id=message.id,
+                    chunk_id=chunk.id,
+                    workspace_file_id=workspace_file.id,
+                    rank=1,
+                    relevance_score=plan.sources[0].score,
+                )
+            )
             msg_session.commit()
 
-        assert session.scalar(select(MessageSource.chunk_id).where(MessageSource.message_id == message.id)) == chunk.id
+        assert (
+            session.scalar(
+                select(MessageSource.chunk_id).where(MessageSource.message_id == message.id)
+            )
+            == chunk.id
+        )
 
 
 @pytest.mark.asyncio
-async def test_empty_retrieval_is_graceful_and_duplicate_chunks_are_filtered(session_factory, tmp_path):
-    settings = Settings(data_dir=tmp_path, rag_similarity_threshold=0.3, rag_max_chunks_per_document=2)
-    store = SQLiteChunkVectorStore(session_factory, embedding_provider=FakeEmbeddingProvider({"query": [1.0, 0.0, 0.0]}))
+async def test_empty_retrieval_is_graceful_and_duplicate_chunks_are_filtered(
+    session_factory, tmp_path
+):
+    settings = Settings(
+        data_dir=tmp_path, rag_similarity_threshold=0.3, rag_max_chunks_per_document=2
+    )
+    store = SQLiteChunkVectorStore(
+        session_factory,
+        embedding_provider=FakeEmbeddingProvider({"query": [1.0, 0.0, 0.0]}),
+        dimension=3,
+    )
 
     with session_factory() as session:
         workspace = Workspace(root_path="/ws/d", name="Course D")
@@ -241,12 +331,20 @@ async def test_empty_retrieval_is_graceful_and_duplicate_chunks_are_filtered(ses
         session.commit()
         session.refresh(file_rec)
 
-        doc = DocumentProcessing(workspace_file_id=file_rec.id, extraction_status="extracted", chunking_status="chunked")
+        doc = DocumentProcessing(
+            workspace_file_id=file_rec.id, extraction_status="extracted", chunking_status="chunked"
+        )
         session.add(doc)
         session.commit()
         session.refresh(doc)
 
-        seg = DocumentSegment(document_processing_id=doc.id, segment_index=0, segment_type="plain_text", text="irrelevant text", char_count=15)
+        seg = DocumentSegment(
+            document_processing_id=doc.id,
+            segment_index=0,
+            segment_type="plain_text",
+            text="irrelevant text",
+            char_count=15,
+        )
         session.add(seg)
         session.commit()
         session.refresh(seg)
@@ -265,15 +363,31 @@ async def test_empty_retrieval_is_graceful_and_duplicate_chunks_are_filtered(ses
         session.commit()
         session.refresh(chunk)
 
-        await store.index_chunk(chunk_id=chunk.id, workspace_id=workspace.id, vector=[0.0, 0.1, 0.0], embedding_model_id="test-model")
+        await store.index_chunk(
+            chunk_id=chunk.id,
+            workspace_id=workspace.id,
+            vector=[0.0, 0.1, 0.0],
+            embedding_model_id="test-model",
+        )
 
-    plan = await RagService(RetrievalService(store, workspace_id=workspace.id), FakeProvider(), settings).prepare("query", [])
+    plan = await RagService(
+        RetrievalService(store, workspace_id=workspace.id), FakeProvider(), settings
+    ).prepare("query", [])
     assert plan.sources == []
     assert "No relevant reference material was found." in plan.prompt
 
     duplicate = [
-        __import__("dataclasses").dataclass(type("ChunkLike", (), {}))(chunk_id=1, workspace_file_id=10, filename="a.md", text="x", score=0.9),
-        __import__("dataclasses").dataclass(type("ChunkLike", (), {}))(chunk_id=1, workspace_file_id=10, filename="a.md", text="x", score=0.8),
+        RetrievedChunk(chunk_id=1, workspace_file_id=10, filename="a.md", text="x", score=0.9),
+        RetrievedChunk(chunk_id=1, workspace_file_id=10, filename="a.md", text="x", score=0.8),
     ]
-    deduped = await RagService(RetrievalService(type("FakeVectorStore", (), {"search": lambda self, query, top_k: duplicate})(), workspace_id=workspace.id), FakeProvider(), settings).prepare("query", [])
+
+    class FakeVectorStore:
+        async def search(self, query: str, *, workspace_id: int, top_k: int) -> list[RetrievedChunk]:
+            return duplicate
+
+    deduped = await RagService(
+        RetrievalService(FakeVectorStore(), workspace_id=workspace.id),
+        FakeProvider(),
+        settings,
+    ).prepare("query", [])
     assert [source.chunk_id for source in deduped.sources] == [1]

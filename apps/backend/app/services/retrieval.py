@@ -23,5 +23,7 @@ class RetrievalService:
         if self.vector_store is None or self.workspace_id is None:
             return []
         if hasattr(self.vector_store, "search"):
-            return await self.vector_store.search(query, workspace_id=self.workspace_id, top_k=top_k)
+            return await self.vector_store.search(
+                query, workspace_id=self.workspace_id, top_k=top_k
+            )
         return []

@@ -113,4 +113,3 @@ def test_change_detector_cancellation(db_session: Session, tmp_path: Path):
         assert False, "Should have raised ScanCancelledError"
     except ScanCancelledError:
         pass
-

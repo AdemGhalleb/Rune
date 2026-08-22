@@ -33,9 +33,7 @@ class TextExtractor(BaseExtractor):
             )
         ]
 
-        logger.info(
-            "Extracted text file %s (%d chars)", file_path.name, len(clean_text)
-        )
+        logger.info("Extracted text file %s (%d chars)", file_path.name, len(clean_text))
 
         text_hash = compute_text_hash(clean_text)
         return ExtractionResult(

@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
-from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.ai.embeddings.config import ACTIVE_EMBEDDING_DIMENSION, get_active_embedding_model_id
 from app.ai.providers.base import EmbeddingProvider
-from app.db.models import Chunk, WorkspaceFile
 from app.services.retrieval import RetrievedChunk
 
 
@@ -43,7 +42,7 @@ class SQLiteChunkVectorStore:
     async def embed_query(self, query: str) -> list[float]:
         if self.embedding_provider is None:
             raise ValueError("Embedding provider is required for query embedding")
-        return await self.embedding_provider.embed(query)
+        return self._normalize(await self.embedding_provider.embed(query))
 
     async def index_chunk(
         self,
@@ -56,22 +55,25 @@ class SQLiteChunkVectorStore:
         if len(vector) != self.dimension:
             raise ValueError(f"Expected {self.dimension}-dimensional vector, got {len(vector)}")
         model_id = embedding_model_id or get_active_embedding_model_id()
+        normalized_vector = self._normalize(vector)
         with self.session_factory() as session:
             self._ensure_vector_table(session, model_id)
+            # SQLite virtual tables do not implement ON CONFLICT / UPSERT.
+            # Replacing a chunk vector is therefore an explicit delete + insert.
+            session.execute(
+                text(f"DELETE FROM {self.table_name} WHERE chunk_id = :chunk_id"),
+                {"chunk_id": chunk_id},
+            )
             session.execute(
                 text(
                     f"INSERT INTO {self.table_name}(chunk_id, workspace_id, embedding_model_id, vector) "
-                    "VALUES (:chunk_id, :workspace_id, :embedding_model_id, :vector) "
-                    "ON CONFLICT(chunk_id) DO UPDATE SET "
-                    "workspace_id = excluded.workspace_id, "
-                    "embedding_model_id = excluded.embedding_model_id, "
-                    "vector = excluded.vector"
+                    "VALUES (:chunk_id, :workspace_id, :embedding_model_id, :vector)"
                 ),
                 {
                     "chunk_id": chunk_id,
                     "workspace_id": workspace_id,
                     "embedding_model_id": model_id,
-                    "vector": json.dumps(vector),
+                    "vector": json.dumps(normalized_vector),
                 },
             )
             session.commit()
@@ -96,7 +98,7 @@ class SQLiteChunkVectorStore:
                     "JOIN document_processing AS dp ON dp.id = c.document_processing_id "
                     "JOIN workspace_files AS wf ON wf.id = dp.workspace_file_id "
                     "WHERE v.workspace_id = :workspace_id AND v.vector MATCH :vector "
-                    "ORDER BY v.distance ASC LIMIT :limit"
+                    "AND v.k = :limit ORDER BY v.distance ASC"
                 ),
                 {"workspace_id": workspace_id, "vector": json.dumps(vector), "limit": top_k},
             ).all()
@@ -108,7 +110,9 @@ class SQLiteChunkVectorStore:
                         workspace_file_id=row.workspace_file_id,
                         filename=row.filename,
                         text=row.text,
-                        score=float(row.distance),
+                        # Vectors are normalized on write/query. For normalized
+                        # vectors, cosine similarity is 1 - (L2_distance² / 2).
+                        score=max(0.0, 1.0 - (float(row.distance) ** 2 / 2.0)),
                     )
                 )
             return result
@@ -120,14 +124,14 @@ class SQLiteChunkVectorStore:
                 "chunk_id INTEGER PRIMARY KEY, "
                 "workspace_id INTEGER, "
                 "embedding_model_id TEXT, "
-                "vector float[{self.dimension}]"
+                f"vector float[{self.dimension}]"
                 ")"
             )
         )
-        if embedding_model_id is not None:
-            session.execute(
-                text(
-                    f"CREATE INDEX IF NOT EXISTS idx_{self.table_name}_workspace_model "
-                    f"ON {self.table_name}(workspace_id, embedding_model_id)"
-                )
-            )
+
+    @staticmethod
+    def _normalize(vector: list[float]) -> list[float]:
+        magnitude = math.sqrt(sum(value * value for value in vector))
+        if magnitude == 0:
+            raise ValueError("Embedding vector must not be all zeros")
+        return [value / magnitude for value in vector]

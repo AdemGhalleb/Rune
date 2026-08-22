@@ -35,9 +35,7 @@ class WorkspaceScanService:
             )
         return workspace
 
-    async def trigger_scan(
-        self, session: Session, scan_manager: ScanManager
-    ) -> ScanJobResponse:
+    async def trigger_scan(self, session: Session, scan_manager: ScanManager) -> ScanJobResponse:
         workspace = self._get_required_workspace(session)
         job = await scan_manager.start_scan(workspace.id)
         return ScanJobResponse.model_validate(job)
@@ -59,9 +57,7 @@ class WorkspaceScanService:
         stats = self.file_repository.get_overview_stats(session, workspace.id)
         latest_job = self.file_repository.get_latest_scan_job(session, workspace.id)
 
-        recent_files_resp = [
-            WorkspaceFileResponse.model_validate(f) for f in stats["recent_files"]
-        ]
+        recent_files_resp = [WorkspaceFileResponse.model_validate(f) for f in stats["recent_files"]]
         latest_scan_resp = ScanJobResponse.model_validate(latest_job) if latest_job else None
 
         return WorkspaceOverviewResponse(
