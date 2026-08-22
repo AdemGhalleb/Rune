@@ -16,7 +16,7 @@ from app.db.models import (
 )
 from app.db.vector_store import SQLiteChunkVectorStore
 from app.services.rag import RagService
-from app.services.retrieval import RetrievedChunk, RetrievalService
+from app.services.retrieval import RetrievalService, RetrievedChunk
 
 
 @dataclass
@@ -382,7 +382,9 @@ async def test_empty_retrieval_is_graceful_and_duplicate_chunks_are_filtered(
     ]
 
     class FakeVectorStore:
-        async def search(self, query: str, *, workspace_id: int, top_k: int) -> list[RetrievedChunk]:
+        async def search(
+            self, query: str, *, workspace_id: int, top_k: int
+        ) -> list[RetrievedChunk]:
             return duplicate
 
     deduped = await RagService(

@@ -66,7 +66,9 @@ class SQLiteChunkVectorStore:
             )
             session.execute(
                 text(
-                    f"INSERT INTO {self.table_name}(chunk_id, workspace_id, embedding_model_id, vector) "
+                    f"INSERT INTO {self.table_name}("
+                    "chunk_id, workspace_id, embedding_model_id, vector"
+                    ") "
                     "VALUES (:chunk_id, :workspace_id, :embedding_model_id, :vector)"
                 ),
                 {
@@ -92,7 +94,8 @@ class SQLiteChunkVectorStore:
             self._ensure_vector_table(session)
             rows = session.execute(
                 text(
-                    f"SELECT v.chunk_id, v.workspace_id, v.distance, c.text, wf.id AS workspace_file_id, wf.filename "
+                    "SELECT v.chunk_id, v.workspace_id, v.distance, c.text, "
+                    "wf.id AS workspace_file_id, wf.filename "
                     f"FROM {self.table_name} AS v "
                     "JOIN chunks AS c ON c.id = v.chunk_id "
                     "JOIN document_processing AS dp ON dp.id = c.document_processing_id "
