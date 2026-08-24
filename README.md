@@ -24,9 +24,9 @@ Over a degree, a student accumulates thousands of files: lecture slides, scanned
 
 Existing tools solve pieces of this, not the problem itself:
 
-- **Note apps** (Obsidian, Notion) organize *what you wrote*, not *what you understand*. They have no idea which concepts you're weak on.
-- **General chat assistants** (ChatGPT, Claude) have no persistent, per-course memory of your material or your history with it — every conversation starts from zero.
-- **Flashcard tools** (Anki, Quizlet) require you to manually author every card and have no awareness of your syllabus, your lectures, or your actual exam content.
+- **Note apps** organize *what you wrote*, not *what you understand*. They have no idea which concepts you're weak on.
+- **General chat assistants** have no persistent, per-course memory of your material or your history with it — every conversation starts from zero.
+- **Flashcard tools** require you to manually author every card and have no awareness of your syllabus, your lectures, or your actual exam content.
 
 None of these maintain a durable, structured model of a specific student's academic knowledge over time. Rune is built around that gap. It is not a document Q&A chatbot with a knowledge base bolted on — the persistent understanding of the student is the product; RAG-based chat is one interface into it.
 
