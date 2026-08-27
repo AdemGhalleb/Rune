@@ -68,6 +68,10 @@ See [Roadmap](#development-roadmap) for phasing.
 
 ## Architecture Overview
 
+<p align="center">
+  <img src="./architecture.png" alt="Rune architecture diagram" width="1000" />
+</p>
+
 Rune is a **modular monolith**, not a microservices system. A single backend process runs entirely on the student's machine, organized into clearly bounded modules with a strict internal dependency direction (API → services → AI/data/workspace layers). This gives the same separation of concerns a services-based architecture would, without the deployment, networking, and operational overhead a single-user local application has no use for. Microservices are the right tool for scaling independent teams and independent load profiles across a network — neither applies to software that runs on one student's laptop.
 
 ```mermaid
