@@ -19,11 +19,33 @@ class RetrievalService:
         self.vector_store = vector_store
         self.workspace_id = workspace_id
 
-    async def retrieve(self, query: str, top_k: int) -> list[RetrievedChunk]:
+    async def retrieve(
+        self,
+        query: str,
+        top_k: int,
+        workspace_file_id: int | None = None,
+    ) -> list[RetrievedChunk]:
         if self.vector_store is None or self.workspace_id is None:
             return []
         if hasattr(self.vector_store, "search"):
-            return await self.vector_store.search(
-                query, workspace_id=self.workspace_id, top_k=top_k
+            kwargs: dict[str, object] = {
+                "workspace_id": self.workspace_id,
+                "top_k": top_k,
+            }
+            if workspace_file_id is not None:
+                kwargs["workspace_file_id"] = workspace_file_id
+            return await self.vector_store.search(query, **kwargs)
+        return []
+
+    async def retrieve_for_file(
+        self, workspace_file_id: int, top_k: int = 15
+    ) -> list[RetrievedChunk]:
+        if self.vector_store is None or self.workspace_id is None:
+            return []
+        if hasattr(self.vector_store, "get_chunks_for_file"):
+            return self.vector_store.get_chunks_for_file(
+                workspace_id=self.workspace_id,
+                workspace_file_id=workspace_file_id,
+                limit=top_k,
             )
         return []

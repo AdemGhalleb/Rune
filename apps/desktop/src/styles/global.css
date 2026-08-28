@@ -1143,6 +1143,102 @@ small {
   border-color: var(--accent-primary);
 }
 
+.option-row.correct {
+  background: var(--success-subtle, rgba(46, 160, 67, 0.15));
+  border-color: var(--success);
+  color: var(--text-primary);
+}
+
+.option-row.incorrect {
+  background: var(--error-subtle, rgba(248, 81, 73, 0.15));
+  border-color: var(--error);
+  color: var(--text-primary);
+}
+
+.study-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.study-input {
+  flex: 1;
+  min-width: 220px;
+  padding: 9px var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.study-select {
+  padding: 9px var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.study-points-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.study-point-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.study-point-icon {
+  margin-top: 2px;
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+.study-citation-grid {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.study-citation-card {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+}
+
+.study-citation-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.study-citation-snippet {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
 .graph-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;

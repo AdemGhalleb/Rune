@@ -9,7 +9,7 @@ SQL or Alembic migrations run. Release packaging must pin and bundle the
 platform-specific `sqlite-vec` wheel (Windows, macOS, or Linux) with Rune's
 backend runtime; no system extension path is required.
 
-Last updated: Phase 4 — RAG chat, live vector retrieval, citations, and Ollama integration
+Last updated: Phase 5A — Study Generation (Summaries, Flashcards, Quizzes, Explanations with Citations & Study UI)
 
 ## Phase 0 — Foundation
 
@@ -57,11 +57,13 @@ Last updated: Phase 4 — RAG chat, live vector retrieval, citations, and Ollama
 | Feature | Status |
 |---|---|
 | Workspace selection & persistence | Done |
-| Workspace indexing & sync | Done (Phase 1 metadata scan & incremental sync complete; vector embedding pipeline to follow in Phase 2) |
+| Workspace indexing & sync | Done |
 | RAG chat | Done |
 | Persistent memory | Not started |
 | Local LLM (Ollama) | Done |
-| Concept mastery tracking | Not started |
+| Study Generation (Summaries, Flashcards, Quizzes, Explanations) | Done |
+| Study Persistence | Not started (Phase 5B) |
+| Concept mastery tracking | Not started (Phase 5C) |
 | Practice generation | Not started |
 
 ## Phase 3 — Embeddings & Vector Retrieval
@@ -86,9 +88,17 @@ Last updated: Phase 4 — RAG chat, live vector retrieval, citations, and Ollama
 | Chat API and SSE transport | Done | Conversation CRUD, streamed `POST` messages, incremental assistant persistence, source endpoint, cancellation on disconnect, and startup reconciliation. |
 | RAG prompt boundary | Done | RAG service builds history/context prompts with explicit untrusted-reference delimiters, similarity threshold, de-duplication, per-document cap, and configurable budgets. |
 | Chat UI | Done | Conversation list, streamed messages, source chips, stop/error states, and an Ollama-unavailable banner. |
-| Live vector-store adapter | Done | Phase 3 now includes a sqlite-vec-backed chunk vector store with workspace-scoped similarity search, query embedding via the embedding provider, and retrieval metadata mapping back to chunk/workspace file rows. Chat automatically uses the live adapter when a workspace is selected. |
+| Live vector-store adapter | Done | Phase 3 includes a sqlite-vec-backed chunk vector store with workspace-scoped similarity search, query embedding via the embedding provider, and retrieval metadata mapping back to chunk/workspace file rows. |
 
-Known limitation: disconnecting a stream stops Rune forwarding tokens and marks the message cancelled, but Ollama may continue computing briefly. Cloud-synced OneDrive placeholders retain the earlier ingestion limitation: files must be downloaded locally before Rune can process them.
+## Phase 5A — Study Generation
+
+| Component | Status | Notes |
+|---|---|---|
+| Grounded Study Schemas | Done | Pydantic schemas for `SummaryResponse`, `FlashcardSetResponse`, `QuizResponse`, `ExplanationResponse`, and `StudyCitation`. |
+| Study Generation Service | Done | `StudyGenerationService` orchestrates prompt assembly with untrusted delimiters, JSON parsing/validation, prompt-injection defense, and citation ID mapping. |
+| Targeted Retrieval | Done | `RetrievalService` and `SQLiteChunkVectorStore` support both semantic query search and document-scoped chunk retrieval. |
+| Study API Endpoints | Done | `POST /api/v1/study/summary`, `POST /api/v1/study/flashcards`, `POST /api/v1/study/quiz`, and `POST /api/v1/study/explain`. |
+| Interactive Study UI | Done | `LearningPage` supports Summarize, Flashcard 3D flip deck, interactive Quiz runner with answer feedback & scoring, and Explain modes with source citation cards. |
 
 ## How to verify this milestone
 
@@ -109,4 +119,4 @@ npm run test:backend
 npm run lint
 ```
 
-Backend validation was last verified with `pytest` and `ruff check`; frontend validation with `npm run lint` and `npm run build`.
+Backend validation was verified with `pytest` and `ruff check`; frontend validation with `tsc --noEmit` and `vite build`.

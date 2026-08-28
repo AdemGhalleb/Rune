@@ -86,12 +86,21 @@ class SQLiteChunkVectorStore:
         *,
         workspace_id: int,
         top_k: int,
+        workspace_file_id: int | None = None,
     ) -> list[RetrievedChunk]:
         if self.embedding_provider is None:
             return []
         vector = await self.embed_query(query)
         with self.session_factory() as session:
             self._ensure_vector_table(session)
+            file_filter = "AND wf.id = :workspace_file_id " if workspace_file_id is not None else ""
+            params: dict[str, object] = {
+                "workspace_id": workspace_id,
+                "vector": json.dumps(vector),
+                "limit": top_k,
+            }
+            if workspace_file_id is not None:
+                params["workspace_file_id"] = workspace_file_id
             rows = session.execute(
                 text(
                     "SELECT v.chunk_id, v.workspace_id, v.distance, c.text, "
@@ -100,10 +109,10 @@ class SQLiteChunkVectorStore:
                     "JOIN chunks AS c ON c.id = v.chunk_id "
                     "JOIN document_processing AS dp ON dp.id = c.document_processing_id "
                     "JOIN workspace_files AS wf ON wf.id = dp.workspace_file_id "
-                    "WHERE v.workspace_id = :workspace_id AND v.vector MATCH :vector "
+                    f"WHERE v.workspace_id = :workspace_id {file_filter}AND v.vector MATCH :vector "
                     "AND v.k = :limit ORDER BY v.distance ASC"
                 ),
-                {"workspace_id": workspace_id, "vector": json.dumps(vector), "limit": top_k},
+                params,
             ).all()
             result: list[RetrievedChunk] = []
             for row in rows:
@@ -119,6 +128,42 @@ class SQLiteChunkVectorStore:
                     )
                 )
             return result
+
+    def get_chunks_for_file(
+        self,
+        *,
+        workspace_id: int,
+        workspace_file_id: int,
+        limit: int = 20,
+    ) -> list[RetrievedChunk]:
+        with self.session_factory() as session:
+            rows = session.execute(
+                text(
+                    "SELECT c.id AS chunk_id, c.text, "
+                    "wf.id AS workspace_file_id, wf.filename "
+                    "FROM chunks AS c "
+                    "JOIN document_processing AS dp ON dp.id = c.document_processing_id "
+                    "JOIN workspace_files AS wf ON wf.id = dp.workspace_file_id "
+                    "WHERE wf.workspace_id = :workspace_id AND wf.id = :workspace_file_id "
+                    "ORDER BY c.chunk_index ASC "
+                    "LIMIT :limit"
+                ),
+                {
+                    "workspace_id": workspace_id,
+                    "workspace_file_id": workspace_file_id,
+                    "limit": limit,
+                },
+            ).all()
+            return [
+                RetrievedChunk(
+                    chunk_id=row.chunk_id,
+                    workspace_file_id=row.workspace_file_id,
+                    filename=row.filename,
+                    text=row.text,
+                    score=1.0,
+                )
+                for row in rows
+            ]
 
     def _ensure_vector_table(self, session: Session, embedding_model_id: str | None = None) -> None:
         session.execute(

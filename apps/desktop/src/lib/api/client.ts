@@ -233,3 +233,106 @@ export async function fetchWorkspaceDocuments(params?: {
   if (!response.ok) throw new Error(`Backend returned ${response.status}`);
   return response.json() as Promise<WorkspaceDocumentList>;
 }
+
+// --- Study Generation (Phase 5A) ---
+
+export interface StudyCitation {
+  chunk_id: number;
+  workspace_file_id: number;
+  filename: string;
+  snippet: string;
+  relevance_score: number | null;
+}
+
+export interface SummaryRequest {
+  topic?: string | null;
+  workspace_file_id?: number | null;
+}
+
+export interface SummaryResponse {
+  topic: string;
+  title: string;
+  overview: string;
+  key_points: string[];
+  citations: StudyCitation[];
+}
+
+export interface FlashcardsRequest {
+  topic?: string | null;
+  workspace_file_id?: number | null;
+  count?: number;
+}
+
+export interface FlashcardItem {
+  question: string;
+  answer: string;
+  citations: StudyCitation[];
+}
+
+export interface FlashcardSetResponse {
+  topic: string;
+  cards: FlashcardItem[];
+}
+
+export interface QuizRequest {
+  topic?: string | null;
+  workspace_file_id?: number | null;
+  count?: number;
+}
+
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correct_index: number;
+  explanation: string;
+  citations: StudyCitation[];
+}
+
+export interface QuizResponse {
+  topic: string;
+  questions: QuizQuestion[];
+}
+
+export interface ExplanationRequest {
+  topic: string;
+  workspace_file_id?: number | null;
+}
+
+export interface ExplanationResponse {
+  topic: string;
+  explanation: string;
+  key_takeaways: string[];
+  citations: StudyCitation[];
+}
+
+export function generateSummary(payload: SummaryRequest): Promise<SummaryResponse> {
+  return apiJson("/api/v1/study/summary", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function generateFlashcards(payload: FlashcardsRequest): Promise<FlashcardSetResponse> {
+  return apiJson("/api/v1/study/flashcards", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function generateQuiz(payload: QuizRequest): Promise<QuizResponse> {
+  return apiJson("/api/v1/study/quiz", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function generateExplanation(payload: ExplanationRequest): Promise<ExplanationResponse> {
+  return apiJson("/api/v1/study/explain", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
