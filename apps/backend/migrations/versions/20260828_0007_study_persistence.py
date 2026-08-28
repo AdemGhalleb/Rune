@@ -168,9 +168,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["chunk_id"], ["chunks.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["workspace_file_id"], ["workspace_files.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "session_id", "chunk_id", name="uq_study_session_citations_chunk"
-        ),
+        sa.UniqueConstraint("session_id", "chunk_id", name="uq_study_session_citations_chunk"),
     )
     op.create_index(
         "ix_study_session_citations_session_id",

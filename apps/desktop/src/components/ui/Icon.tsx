@@ -1,6 +1,7 @@
 export type IconName =
   | "arrowRight"
   | "book"
+  | "bookmark"
   | "check"
   | "chevronDown"
   | "clock"
@@ -23,6 +24,7 @@ export type IconName =
   | "sun"
   | "target"
   | "tasks"
+  | "trash"
   | "zap";
 
 interface IconProps {
@@ -56,6 +58,8 @@ function renderIcon(name: IconName) {
       return <path d="M5 12h14m-6-6 6 6-6 6" />;
     case "book":
       return <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z" />;
+    case "bookmark":
+      return <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />;
     case "check":
       return <path d="m5 12 4 4L19 6" />;
     case "chevronDown":
@@ -148,6 +152,10 @@ function renderIcon(name: IconName) {
       );
     case "tasks":
       return <path d="m4 7 2 2 4-4M13 7h7M4 17l2 2 4-4M13 17h7" />;
+    case "trash":
+      return (
+        <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      );
     case "zap":
       return <path d="M13 2 4 14h7l-1 8 9-12h-7z" />;
   }

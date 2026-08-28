@@ -1,7 +1,7 @@
 """Study generation and persistence API endpoints (Phase 5A & 5B)."""
 
-from collections.abc import Generator
 import logging
+from collections.abc import Generator
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session, sessionmaker

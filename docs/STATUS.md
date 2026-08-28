@@ -112,7 +112,7 @@ Last updated: Phase 5B — Study Persistence (Sessions, Flashcards, Quizzes, Att
 | Frontend Session Management | Done | LearningPage integrates session save/load/delete, flashcard review state updates, quiz attempt recording, and "Saved Sessions" history tab with filtering. |
 | Workspace Isolation | Done | Study sessions are properly scoped to workspace_id; cross-workspace access is rejected. |
 | Data Persistence | Done | Study data persists across application restart; verified via test `test_study_persistence_across_sessions`. |
-| Comprehensive Tests | Done | 9 new tests covering all persistence operations, workspace isolation, and critical restart scenario. |
+| Comprehensive Tests | Done | 13 tests covering all persistence operations, workspace isolation, schema migrations, and critical restart scenarios. |
 
 ## How to verify this milestone
 
@@ -147,4 +147,4 @@ To verify study persistence works across application restart:
 8. **Verify the previously saved session is still there** (persisted across restart)
 9. Load the session and verify all content is intact
 
-Backend validation was verified with `pytest` (51 tests passed) and `ruff check`; frontend validation with `tsc --noEmit` and `vite build`.
+Backend validation was verified with `pytest` (55 tests passed) and `ruff check`; frontend validation with `tsc --noEmit` and `vite build`.

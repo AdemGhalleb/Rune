@@ -3,12 +3,9 @@
 Handles persistent storage, retrieval, reviews, and attempt logging for study sessions.
 """
 
-from __future__ import annotations
-
-from datetime import UTC, datetime
 import json
 import logging
-from typing import Any
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
@@ -28,11 +25,9 @@ from app.schemas.study import (
     ExplanationResponse,
     FlashcardItemPersisted,
     FlashcardReviewUpdate,
-    FlashcardSetResponse,
     QuizAttemptCreate,
     QuizAttemptResponse,
     QuizQuestionPersisted,
-    QuizResponse,
     StudyCitation,
     StudySessionCreate,
     StudySessionDetail,
@@ -57,8 +52,7 @@ class StudyPersistenceService:
         if payload.session_type == StudySessionType.SUMMARY.value and payload.summary_data:
             content_json = payload.summary_data.model_dump_json()
         elif (
-            payload.session_type == StudySessionType.EXPLANATION.value
-            and payload.explanation_data
+            payload.session_type == StudySessionType.EXPLANATION.value and payload.explanation_data
         ):
             content_json = payload.explanation_data.model_dump_json()
 
@@ -172,24 +166,35 @@ class StudyPersistenceService:
         for s in sessions:
             item_count = 0
             if s.session_type == StudySessionType.FLASHCARDS.value:
-                item_count = self.session.scalar(
-                    select(func.count(StudyFlashcard.id)).where(StudyFlashcard.session_id == s.id)
-                ) or 0
-            elif s.session_type == StudySessionType.QUIZ.value:
-                item_count = self.session.scalar(
-                    select(func.count(StudyQuizQuestion.id)).where(
-                        StudyQuizQuestion.session_id == s.id
+                item_count = (
+                    self.session.scalar(
+                        select(func.count(StudyFlashcard.id)).where(
+                            StudyFlashcard.session_id == s.id
+                        )
                     )
-                ) or 0
+                    or 0
+                )
+            elif s.session_type == StudySessionType.QUIZ.value:
+                item_count = (
+                    self.session.scalar(
+                        select(func.count(StudyQuizQuestion.id)).where(
+                            StudyQuizQuestion.session_id == s.id
+                        )
+                    )
+                    or 0
+                )
 
             attempt_count = 0
             best_score: int | None = None
             if s.session_type == StudySessionType.QUIZ.value:
-                attempt_count = self.session.scalar(
-                    select(func.count(StudyQuizAttempt.id)).where(
-                        StudyQuizAttempt.session_id == s.id
+                attempt_count = (
+                    self.session.scalar(
+                        select(func.count(StudyQuizAttempt.id)).where(
+                            StudyQuizAttempt.session_id == s.id
+                        )
                     )
-                ) or 0
+                    or 0
+                )
                 if attempt_count > 0:
                     best_score = self.session.scalar(
                         select(func.max(StudyQuizAttempt.score)).where(
@@ -224,7 +229,9 @@ class StudyPersistenceService:
                 StudySession.workspace_id == self.workspace_id,
             )
             .options(
-                selectinload(StudySession.citations).selectinload(StudySessionCitation.workspace_file),
+                selectinload(StudySession.citations).selectinload(
+                    StudySessionCitation.workspace_file
+                ),
                 selectinload(StudySession.flashcards)
                 .selectinload(StudyFlashcard.citations)
                 .selectinload(StudyFlashcardCitation.workspace_file),
@@ -262,7 +269,11 @@ class StudyPersistenceService:
                     citations=citations,
                 )
             except Exception as err:
-                logger.warning("Failed to deserialize summary content_json for session %s: %s", s.id, err)
+                logger.warning(
+                    "Failed to deserialize summary content_json for session %s: %s",
+                    s.id,
+                    err,
+                )
 
         explanation_data: ExplanationResponse | None = None
         if s.session_type == StudySessionType.EXPLANATION.value and s.content_json:
@@ -275,7 +286,11 @@ class StudyPersistenceService:
                     citations=citations,
                 )
             except Exception as err:
-                logger.warning("Failed to deserialize explanation content_json for session %s: %s", s.id, err)
+                logger.warning(
+                    "Failed to deserialize explanation content_json for session %s: %s",
+                    s.id,
+                    err,
+                )
 
         flashcards = [
             FlashcardItemPersisted(
@@ -319,7 +334,9 @@ class StudyPersistenceService:
                         StudyCitation(
                             chunk_id=qqc.chunk_id,
                             workspace_file_id=qqc.workspace_file_id,
-                            filename=qqc.workspace_file.filename if qqc.workspace_file else "unknown",
+                            filename=qqc.workspace_file.filename
+                            if qqc.workspace_file
+                            else "unknown",
                             snippet=qqc.snippet or "",
                             relevance_score=qqc.relevance_score,
                         )

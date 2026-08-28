@@ -119,6 +119,11 @@ async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function apiVoid(path: string, init?: RequestInit): Promise<void> {
+  const response = await fetch(`${getBackendBaseUrl()}${path}`, init);
+  if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+}
+
 export function fetchLlmStatus(): Promise<LlmStatus> { return apiJson("/api/v1/llm/status"); }
 export function fetchConversations(): Promise<Conversation[]> { return apiJson("/api/v1/conversations"); }
 export function createConversation(title?: string): Promise<Conversation> { return apiJson("/api/v1/conversations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) }); }

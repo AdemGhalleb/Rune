@@ -11,7 +11,6 @@ import {
   type FlashcardItemPersisted,
   type FlashcardSetResponse,
   type QuizAttemptResponse,
-  type QuizQuestionPersisted,
   type QuizResponse,
   type StudySessionDetail,
   type StudySessionSummary,
@@ -61,7 +60,6 @@ export function LearningPage() {
   // Active Persistent Session State
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const [persistedCards, setPersistedCards] = useState<FlashcardItemPersisted[]>([]);
-  const [persistedQuestions, setPersistedQuestions] = useState<QuizQuestionPersisted[]>([]);
   const [quizAttempts, setQuizAttempts] = useState<QuizAttemptResponse[]>([]);
 
   // Study Results State (in-memory or active)
@@ -158,7 +156,6 @@ export function LearningPage() {
     setErrorMessage(null);
     setSaveSuccessMsg(null);
     setActiveSessionId(null);
-    setPersistedQuestions([]);
     setQuizAttempts([]);
     try {
       const res = await generateQuiz({
@@ -233,7 +230,6 @@ export function LearningPage() {
           workspace_file_id: selectedDocId,
           quiz_data: quizData,
         });
-        setPersistedQuestions(created.quiz_questions);
         setQuizAttempts(created.quiz_attempts);
       } else if (activeTab === "explain" && explanationData) {
         created = await createStudySession({
@@ -285,7 +281,6 @@ export function LearningPage() {
         setCardFlipped(false);
         setActiveTab("flashcards");
       } else if (detail.session_type === "quiz") {
-        setPersistedQuestions(detail.quiz_questions);
         setQuizAttempts(detail.quiz_attempts);
         setQuizData({
           topic: detail.topic || detail.title,
@@ -934,7 +929,6 @@ export function LearningPage() {
               <Button
                 key={ft}
                 onClick={() => setHistoryFilter(ft)}
-                size="sm"
                 variant={historyFilter === ft ? "primary" : "secondary"}
               >
                 {ft === "all" ? "All Saved" : ft.charAt(0).toUpperCase() + ft.slice(1)}
@@ -992,12 +986,11 @@ export function LearningPage() {
                   </div>
 
                   <div style={{ display: "flex", gap: "8px" }}>
-                    <Button onClick={() => void handleLoadSession(session)} size="sm" variant="secondary">
+                    <Button onClick={() => void handleLoadSession(session)} variant="secondary">
                       Open / Practice
                     </Button>
                     <Button
                       onClick={(e) => void handleDeleteSession(session.id, e)}
-                      size="sm"
                       variant="ghost"
                     >
                       <Icon name="trash" size={16} />
