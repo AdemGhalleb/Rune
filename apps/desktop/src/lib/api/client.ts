@@ -336,3 +336,142 @@ export function generateExplanation(payload: ExplanationRequest): Promise<Explan
     body: JSON.stringify(payload),
   });
 }
+
+// --- Phase 5B: Study Persistence ---
+
+export interface FlashcardItemPersisted {
+  id: number;
+  card_index: number;
+  question: string;
+  answer: string;
+  review_count: number;
+  state: "new" | "learning" | "shaky" | "mastered" | string;
+  last_reviewed_at: string | null;
+  citations: StudyCitation[];
+}
+
+export interface QuizQuestionPersisted {
+  id: number;
+  question_index: number;
+  question: string;
+  options: string[];
+  correct_index: number;
+  explanation: string;
+  citations: StudyCitation[];
+}
+
+export interface QuizAttemptCreate {
+  score: number;
+  total_questions: number;
+  answers: Record<string, number>;
+}
+
+export interface QuizAttemptResponse {
+  id: number;
+  session_id: number;
+  score: number;
+  total_questions: number;
+  answers: Record<string, number>;
+  completed_at: string;
+  created_at: string;
+}
+
+export interface StudySessionCreate {
+  session_type: "summary" | "flashcards" | "quiz" | "explanation" | string;
+  title: string;
+  topic?: string | null;
+  workspace_file_id?: number | null;
+  summary_data?: SummaryResponse | null;
+  flashcards_data?: FlashcardSetResponse | null;
+  quiz_data?: QuizResponse | null;
+  explanation_data?: ExplanationResponse | null;
+}
+
+export interface StudySessionSummary {
+  id: number;
+  workspace_id: number;
+  session_type: "summary" | "flashcards" | "quiz" | "explanation" | string;
+  title: string;
+  topic: string | null;
+  workspace_file_id: number | null;
+  created_at: string;
+  updated_at: string;
+  item_count: number;
+  attempt_count: number;
+  best_score: number | null;
+}
+
+export interface StudySessionDetail {
+  id: number;
+  workspace_id: number;
+  session_type: "summary" | "flashcards" | "quiz" | "explanation" | string;
+  title: string;
+  topic: string | null;
+  workspace_file_id: number | null;
+  created_at: string;
+  updated_at: string;
+  summary_data: SummaryResponse | null;
+  flashcards: FlashcardItemPersisted[];
+  quiz_questions: QuizQuestionPersisted[];
+  quiz_attempts: QuizAttemptResponse[];
+  explanation_data: ExplanationResponse | null;
+  citations: StudyCitation[];
+}
+
+export function createStudySession(payload: StudySessionCreate): Promise<StudySessionDetail> {
+  return apiJson("/api/v1/study/sessions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listStudySessions(params?: {
+  session_type?: string;
+  workspace_file_id?: number;
+}): Promise<StudySessionSummary[]> {
+  const query = new URLSearchParams();
+  if (params?.session_type) query.set("session_type", params.session_type);
+  if (params?.workspace_file_id !== undefined)
+    query.set("workspace_file_id", String(params.workspace_file_id));
+  const queryString = query.toString() ? `?${query.toString()}` : "";
+  return apiJson(`/api/v1/study/sessions${queryString}`);
+}
+
+export function getStudySession(sessionId: number): Promise<StudySessionDetail> {
+  return apiJson(`/api/v1/study/sessions/${sessionId}`);
+}
+
+export function deleteStudySession(sessionId: number): Promise<void> {
+  return apiVoid(`/api/v1/study/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+}
+
+export function reviewFlashcard(
+  sessionId: number,
+  cardId: number,
+  state: "learning" | "shaky" | "mastered",
+): Promise<FlashcardItemPersisted> {
+  return apiJson(`/api/v1/study/sessions/${sessionId}/flashcards/${cardId}/review`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ state }),
+  });
+}
+
+export function recordQuizAttempt(
+  sessionId: number,
+  payload: QuizAttemptCreate,
+): Promise<QuizAttemptResponse> {
+  return apiJson(`/api/v1/study/sessions/${sessionId}/quiz/attempt`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getQuizAttempts(sessionId: number): Promise<QuizAttemptResponse[]> {
+  return apiJson(`/api/v1/study/sessions/${sessionId}/quiz/attempts`);
+}
+

@@ -9,7 +9,7 @@ SQL or Alembic migrations run. Release packaging must pin and bundle the
 platform-specific `sqlite-vec` wheel (Windows, macOS, or Linux) with Rune's
 backend runtime; no system extension path is required.
 
-Last updated: Phase 5A — Study Generation (Summaries, Flashcards, Quizzes, Explanations with Citations & Study UI)
+Last updated: Phase 5B — Study Persistence (Sessions, Flashcards, Quizzes, Attempts with Workspace Isolation & Persistence)
 
 ## Phase 0 — Foundation
 
@@ -62,7 +62,7 @@ Last updated: Phase 5A — Study Generation (Summaries, Flashcards, Quizzes, Exp
 | Persistent memory | Not started |
 | Local LLM (Ollama) | Done |
 | Study Generation (Summaries, Flashcards, Quizzes, Explanations) | Done |
-| Study Persistence | Not started (Phase 5B) |
+| Study Persistence | Done | Phase 5B |
 | Concept mastery tracking | Not started (Phase 5C) |
 | Practice generation | Not started |
 
@@ -100,6 +100,20 @@ Last updated: Phase 5A — Study Generation (Summaries, Flashcards, Quizzes, Exp
 | Study API Endpoints | Done | `POST /api/v1/study/summary`, `POST /api/v1/study/flashcards`, `POST /api/v1/study/quiz`, and `POST /api/v1/study/explain`. |
 | Interactive Study UI | Done | `LearningPage` supports Summarize, Flashcard 3D flip deck, interactive Quiz runner with answer feedback & scoring, and Explain modes with source citation cards. |
 
+## Phase 5B — Study Persistence
+
+| Component | Status | Notes |
+|---|---|---|
+| Study Session Models | Done | `StudySession` (summary, flashcards, quiz, explanation), `StudyFlashcard`, `StudyQuizQuestion`, `StudyQuizAttempt` with proper relationships and cascade behavior. |
+| Citation Models | Done | `StudySessionCitation`, `StudyFlashcardCitation`, `StudyQuizQuestionCitation` link generated material back to source chunks and workspace files. |
+| Database Migration | Done | Migration `20260828_0007_study_persistence` creates all study persistence tables with proper indices and foreign keys. |
+| Study Persistence Service | Done | `StudyPersistenceService` implements full CRUD for study sessions, flashcard review state tracking, quiz attempt recording, and retrieval with eager-loaded relationships. |
+| Study Persistence API | Done | `POST /sessions`, `GET /sessions`, `GET /sessions/{id}`, `DELETE /sessions/{id}`, `POST /sessions/{id}/flashcards/{id}/review`, `POST /sessions/{id}/quiz/attempt`, `GET /sessions/{id}/quiz/attempts`. |
+| Frontend Session Management | Done | LearningPage integrates session save/load/delete, flashcard review state updates, quiz attempt recording, and "Saved Sessions" history tab with filtering. |
+| Workspace Isolation | Done | Study sessions are properly scoped to workspace_id; cross-workspace access is rejected. |
+| Data Persistence | Done | Study data persists across application restart; verified via test `test_study_persistence_across_sessions`. |
+| Comprehensive Tests | Done | 9 new tests covering all persistence operations, workspace isolation, and critical restart scenario. |
+
 ## How to verify this milestone
 
 ```bash
@@ -119,4 +133,18 @@ npm run test:backend
 npm run lint
 ```
 
-Backend validation was verified with `pytest` and `ruff check`; frontend validation with `tsc --noEmit` and `vite build`.
+### Phase 5B Verification
+
+To verify study persistence works across application restart:
+
+1. Start the backend and frontend (see above)
+2. Select a workspace and ensure documents are indexed
+3. Generate a summary, flashcards, or quiz
+4. Click "Save Session to Library" to persist to database
+5. Navigate to "Saved Sessions" tab to see the saved session
+6. **Restart the backend and frontend**
+7. Navigate back to "Saved Sessions" tab
+8. **Verify the previously saved session is still there** (persisted across restart)
+9. Load the session and verify all content is intact
+
+Backend validation was verified with `pytest` (51 tests passed) and `ruff check`; frontend validation with `tsc --noEmit` and `vite build`.

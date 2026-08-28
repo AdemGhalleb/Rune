@@ -113,6 +113,9 @@ class Workspace(Base):
     doc_processing_jobs: Mapped[list["DocumentProcessingJob"]] = relationship(
         "DocumentProcessingJob", back_populates="workspace", cascade="all, delete-orphan"
     )
+    study_sessions: Mapped[list["StudySession"]] = relationship(
+        "StudySession", back_populates="workspace", cascade="all, delete-orphan"
+    )
 
 
 class WorkspaceFile(Base):
@@ -460,3 +463,250 @@ class ScanJob(Base):
     )
 
     workspace: Mapped[Workspace] = relationship("Workspace", back_populates="scan_jobs")
+
+
+class StudySessionType(StrEnum):
+    SUMMARY = "summary"
+    FLASHCARDS = "flashcards"
+    QUIZ = "quiz"
+    EXPLANATION = "explanation"
+
+
+class FlashcardState(StrEnum):
+    NEW = "new"
+    LEARNING = "learning"
+    SHAKY = "shaky"
+    MASTERED = "mastered"
+
+
+class StudySession(Base):
+    """Persistent study activity session scoped to a workspace."""
+
+    __tablename__ = "study_sessions"
+    __table_args__ = (
+        Index("ix_study_sessions_workspace_type", "workspace_id", "session_type"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    session_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    topic: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    workspace_file_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("workspace_files.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    content_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    workspace: Mapped[Workspace] = relationship("Workspace", back_populates="study_sessions")
+    workspace_file: Mapped["WorkspaceFile | None"] = relationship("WorkspaceFile")
+    flashcards: Mapped[list["StudyFlashcard"]] = relationship(
+        "StudyFlashcard",
+        back_populates="session",
+        cascade="all, delete-orphan",
+        order_by="StudyFlashcard.card_index",
+    )
+    quiz_questions: Mapped[list["StudyQuizQuestion"]] = relationship(
+        "StudyQuizQuestion",
+        back_populates="session",
+        cascade="all, delete-orphan",
+        order_by="StudyQuizQuestion.question_index",
+    )
+    quiz_attempts: Mapped[list["StudyQuizAttempt"]] = relationship(
+        "StudyQuizAttempt",
+        back_populates="session",
+        cascade="all, delete-orphan",
+        order_by="StudyQuizAttempt.created_at.desc()",
+    )
+    citations: Mapped[list["StudySessionCitation"]] = relationship(
+        "StudySessionCitation",
+        back_populates="session",
+        cascade="all, delete-orphan",
+        order_by="StudySessionCitation.rank",
+    )
+
+
+class StudyFlashcard(Base):
+    """Persistent flashcard item belonging to a study session."""
+
+    __tablename__ = "study_flashcards"
+    __table_args__ = (
+        Index("ix_study_flashcards_session_idx", "session_id", "card_index"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("study_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    card_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    review_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    state: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=FlashcardState.NEW.value
+    )
+    last_reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    session: Mapped[StudySession] = relationship("StudySession", back_populates="flashcards")
+    citations: Mapped[list["StudyFlashcardCitation"]] = relationship(
+        "StudyFlashcardCitation",
+        back_populates="flashcard",
+        cascade="all, delete-orphan",
+    )
+
+
+class StudyQuizQuestion(Base):
+    """Persistent quiz question belonging to a study session."""
+
+    __tablename__ = "study_quiz_questions"
+    __table_args__ = (
+        Index("ix_study_quiz_questions_session_idx", "session_id", "question_index"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("study_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    question_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    options_json: Mapped[str] = mapped_column(Text, nullable=False)
+    correct_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    explanation: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    session: Mapped[StudySession] = relationship("StudySession", back_populates="quiz_questions")
+    citations: Mapped[list["StudyQuizQuestionCitation"]] = relationship(
+        "StudyQuizQuestionCitation",
+        back_populates="quiz_question",
+        cascade="all, delete-orphan",
+    )
+
+
+class StudyQuizAttempt(Base):
+    """Log of a completed quiz attempt for a study session."""
+
+    __tablename__ = "study_quiz_attempts"
+    __table_args__ = (
+        Index("ix_study_quiz_attempts_session_created", "session_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("study_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    score: Mapped[int] = mapped_column(Integer, nullable=False)
+    total_questions: Mapped[int] = mapped_column(Integer, nullable=False)
+    answers_json: Mapped[str] = mapped_column(Text, nullable=False)
+    completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    session: Mapped[StudySession] = relationship("StudySession", back_populates="quiz_attempts")
+
+
+class StudySessionCitation(Base):
+    """Citation linking a study session to a chunk and source workspace file."""
+
+    __tablename__ = "study_session_citations"
+    __table_args__ = (
+        UniqueConstraint("session_id", "chunk_id", name="uq_study_session_citations_chunk"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("study_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    chunk_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("chunks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    workspace_file_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("workspace_files.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    snippet: Mapped[str | None] = mapped_column(Text, nullable=True)
+    relevance_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    rank: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    session: Mapped[StudySession] = relationship("StudySession", back_populates="citations")
+    chunk: Mapped["Chunk"] = relationship("Chunk")
+    workspace_file: Mapped["WorkspaceFile"] = relationship("WorkspaceFile")
+
+
+class StudyFlashcardCitation(Base):
+    """Citation linking an individual flashcard to a source chunk."""
+
+    __tablename__ = "study_flashcard_citations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    flashcard_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("study_flashcards.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    chunk_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("chunks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    workspace_file_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("workspace_files.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    snippet: Mapped[str | None] = mapped_column(Text, nullable=True)
+    relevance_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    flashcard: Mapped[StudyFlashcard] = relationship("StudyFlashcard", back_populates="citations")
+    chunk: Mapped["Chunk"] = relationship("Chunk")
+    workspace_file: Mapped["WorkspaceFile"] = relationship("WorkspaceFile")
+
+
+class StudyQuizQuestionCitation(Base):
+    """Citation linking an individual quiz question to a source chunk."""
+
+    __tablename__ = "study_quiz_question_citations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    quiz_question_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("study_quiz_questions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    chunk_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("chunks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    workspace_file_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("workspace_files.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    snippet: Mapped[str | None] = mapped_column(Text, nullable=True)
+    relevance_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    quiz_question: Mapped[StudyQuizQuestion] = relationship(
+        "StudyQuizQuestion", back_populates="citations"
+    )
+    chunk: Mapped["Chunk"] = relationship("Chunk")
+    workspace_file: Mapped["WorkspaceFile"] = relationship("WorkspaceFile")
+
