@@ -109,6 +109,17 @@ async def test_document_summary_and_list_endpoints(client: AsyncClient, session_
             break
         await asyncio.sleep(0.1)
 
+    for _ in range(50):
+        with session_factory() as session:
+            in_flight_docs = any(
+                dp.extraction_status == ExtractionStatus.EXTRACTING.value
+                or dp.chunking_status == ChunkingStatus.CHUNKING.value
+                for dp in session.query(DocumentProcessing).all()
+            )
+        if not in_flight_docs:
+            break
+        await asyncio.sleep(0.1)
+
     with session_factory() as session:
         files = {f.relative_path: f for f in session.query(WorkspaceFile).all()}
         ready_dp = (
