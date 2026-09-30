@@ -13,8 +13,20 @@ Rune turns a student's scattered academic material — lecture PDFs, notes, assi
 [![Status](https://img.shields.io/badge/status-early--development-orange)]()
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)]()
 
-<!-- ![Rune screenshot](docs/assets/screenshot-placeholder.png) -->
-<!-- Demo GIF placeholder: docs/assets/demo-placeholder.gif -->
+## Screenshots
+
+<p align="center">
+  <img src="docs/home.png" alt="Rune home view" width="48%" />
+  <img src="docs/chat.png" alt="Rune chat view" width="48%" />
+</p>
+<p align="center">
+  <img src="docs/graph.png" alt="Rune concept graph view" width="48%" />
+  <img src="docs/tasks.png" alt="Rune tasks view" width="48%" />
+</p>
+<p align="center">
+  <img src="docs/email.png" alt="Rune email intelligence view" width="48%" />
+  <img src="docs/docs.png" alt="Rune document view" width="48%" />
+</p>
 
 ---
 
